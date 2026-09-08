@@ -14,12 +14,17 @@ const FIXED = 1 / 120;
 const angDiff = a => Math.atan2(Math.sin(a), Math.cos(a));
 const fmt = t => Math.floor(t / 60) + ':' + (t % 60 < 10 ? '0' : '') + (t % 60).toFixed(2);
 
-function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
+function run(lookahead = 26, gain = 2.1, hbThresh = 0.42, from = 0, to = null) {
   const stage = new Stage();
   const car = new Car();
   const wheel = new Wheel();
 
-  const s0 = stage.samples[0];
+  // A run is a STRETCH of the road: the whole stage, or one section for a sprint.
+  let i0 = 0;
+  while (i0 < stage.samples.length - 1 && stage.samples[i0].dist < from) i0++;
+  const finishAt = to == null ? stage.length - 6 : to;
+  const s0 = stage.samples[i0];
+  stage._hint = i0;
   car.x = s0.x; car.z = s0.z; car.y = s0.y; car.yaw = s0.head;
 
   let t = 0, hb = 0;
@@ -73,7 +78,7 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
     if (car.rolled) {
       return { ok: false, why: 'ROLLED at ' + Math.round(g.progress) + 'm', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
     }
-    if (g.progress >= stage.length - 6) {
+    if (g.progress >= finishAt) {
       return { ok: true, t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
     }
     if (car.speed < 0.4 && t > 6) {
@@ -81,6 +86,33 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
     }
   }
   return { ok: false, why: 'never finished', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
+}
+
+// --sprint: how long is each section from a standing start? The daily is meant to be
+// about a minute, and a person is roughly 1.3x the autopilot, so these want to land
+// around 40-55s of autopilot time for that claim to be true.
+if (process.argv.includes('--sprint')) {
+  const st = new Stage();
+  console.log('THE DAILY — every section, from a standing start\n');
+  console.log('  section      length   autopilot    a person, roughly');
+  let bad = 0;
+  for (const sec of st.sections) {
+    const r = run(26, 2.1, 0.42, sec.start, sec.end);
+    const human = r.t * 1.3;
+    // 30-90s is the honest band for "a small little 1 min sprint" — the Drop Zone is
+    // the quick one at ~36s and the Climb the long one at ~65s, and that spread is
+    // variety rather than a fault.
+    const okLen = r.ok && human > 30 && human < 90;
+    if (!okLen) bad++;
+    console.log('  ' + sec.key.padEnd(10)
+      + String(Math.round(sec.end - sec.start)).padStart(6) + 'm'
+      + (r.ok ? (r.t.toFixed(1) + 's').padStart(11) : 'DNF'.padStart(11))
+      + (r.ok ? ('~' + human.toFixed(0) + 's').padStart(14) : ''.padStart(14))
+      + (okLen ? '' : '   <-- ' + (r.ok ? 'off target' : r.why)));
+  }
+  console.log('\n  every section drivable from a stop  ' + (bad ? 'FAIL' : 'pass'));
+  console.log('  every daily lands near a minute     ' + (bad ? 'FAIL' : 'pass'));
+  process.exit(bad ? 1 : 0);
 }
 
 const r = run();

@@ -15,6 +15,7 @@ import { Glass } from './glass.js';
 import { Look } from './look.js';
 import { Sound } from './audio.js';
 import { atmosAt, ATMOS, ATMOS_KEYS } from './atmos.js';
+import { Menu, sprintOfDay } from './menu.js';
 import { Post } from './post.js';
 
 const FIXED = 1 / 120;
@@ -136,6 +137,10 @@ const wheel = new Wheel();
 const air = new AirFx();
 const sound = new Sound();
 
+// A RUN is a stretch of THIS stage: the whole thing for the Stage of the Day, or one
+// section for the daily sprint. Same road, same physics — only where you start and where
+// the clock stops. Nothing new is generated or authored to make a sprint exist.
+let run = null;
 let running = false;
 let timer = 0, timing = false, finished = false;
 let best = parseFloat(localStorage.getItem('rally.best') || '0') || 0;
@@ -176,10 +181,12 @@ function startFade() {
   $('fade').classList.add('on');
   setTimeout(() => {
     resetRun();
-    $('start').classList.remove('gone');
-    $('fade').classList.remove('on');
     running = false;
     fading = false;
+    $('fade').classList.remove('on');
+    // On your roof is not a time, so there's nothing to record — you land back on the
+    // home screen with the day's clock still running and can go again.
+    menu.show('home');
   }, 1150);
 }
 
@@ -220,8 +227,22 @@ function flash(el) {
   el.classList.add('on');
 }
 
+// Index of the sample at a given distance along the road.
+function sampleAt(dist) {
+  const S = stage.samples;
+  let lo = 0, hi = S.length - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (S[mid].dist < dist) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+
 function resetRun() {
-  const s0 = stage.samples[0];
+  if (!run) run = { mode: 'stage', from: 0, to: stage.length - 6, key: 'full', title: 'STAGE' };
+  const i0 = sampleAt(run.from);
+  const s0 = stage.samples[i0];
+  // The road-finder walks locally from wherever it last was, so dropping the car 5km
+  // down the stage without telling it means the first lookup is a full scan from a
+  // stale index. Point it at the start line.
+  stage._hint = i0;
   car.x = s0.x; car.z = s0.z; car.y = s0.y;
   car.yaw = s0.head; car.vf = 0; car.vr = 0; car.vy = 0; car.yawRate = 0;
   car.airborne = false; car.airTime = 0; car.pitch = 0; car.roll = 0;
@@ -232,13 +253,14 @@ function resetRun() {
   hoodDirt = 0;
   hoodMat.color.setRGB(1, 1, 1);
   timer = 0; timing = false; finished = false;
-  noteSeg = -1; noteUntil = 0;
+  noteSeg = s0.seg - 1;          // so the first call is the corner you're actually on
+  noteUntil = 0;
   dsFlare = 0;
   // Seed the place so the line you get on the start line is the co-driver's first call,
   // not the name of somewhere you're already standing. Only ARRIVING somewhere is news.
-  shownPlace = atmosAt(stage.sections, 0).name;
+  shownPlace = atmosAt(stage.sections, run.from).name;
   $('finish').classList.remove('show');
-  say(SEGMENTS[0].note);
+  say(SEGMENTS[s0.seg].note);
 }
 
 function say(text) {
@@ -315,16 +337,13 @@ function step(dt) {
   if (car.rolled) { timing = false; if (car.settled && !fading) startFade(); }
 
   // --- timing --------------------------------------------------------------
-  if (!timing && p > 12) timing = true;
+  if (!timing && p > run.from + 12) timing = true;
   if (timing && !finished) {
     timer += dt;
-    if (p >= stage.length - 6) {
+    if (p >= run.to) {
       finished = true; timing = false;
-      const isPB = !best || timer < best;
-      if (isPB) { best = timer; localStorage.setItem('rally.best', String(best)); }
-      $('finishTime').textContent = fmt(timer);
-      $('finishTag').textContent = isPB ? 'PERSONAL BEST' : 'BEST ' + fmt(best);
-      $('finish').classList.add('show');
+      running = false;
+      menu.finished(run, timer);
     }
   }
 }
@@ -514,13 +533,21 @@ function fitCanvas() {
 addEventListener('resize', fitCanvas);
 addEventListener('orientationchange', () => setTimeout(fitCanvas, 120));
 
-$('start').addEventListener('click', () => {
-  sound.start();
-  look.enable();          // needs the tap: iOS won't hand over the sensor otherwise
-  $('start').classList.add('gone');
-  resetRun();
-  running = true;
-  last = performance.now();
+// The menu is the front door. It hands back a run spec — which stretch of road, and
+// what to call it — and gets told the time when the run ends.
+const menu = new Menu({
+  stage,
+  atmos: ATMOS,
+  onStart: spec => {
+    run = spec;
+    sound.start();
+    look.enable();        // needs the tap: iOS won't hand over the sensor otherwise
+    menu.hide();
+    $('start').classList.add('gone');
+    resetRun();
+    running = true;
+    last = performance.now();
+  },
 });
 
 // 1-8 pin a filter, 0 hands it back to the stage, P toggles the pass entirely. Desk
@@ -538,15 +565,25 @@ addEventListener('keydown', e => {
 });
 
 $('retry').addEventListener('click', e => { e.stopPropagation(); resetRun(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && running) { running = false; menu.show('home'); } });
 $('resetBtn').addEventListener('click', e => { e.stopPropagation(); resetRun(); });
 
 resetRun();
+if (!AUTO) { $('start').classList.add('gone'); menu.show('home'); }
 if (AUTO) {
   $('start').classList.add('gone');
   sound.start();          // so headless runs exercise the audio path too
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot
   // can be taken at an exact moment (mid-jump, say) rather than whenever the headless
   // browser happens to get round to it.
+  // ?mode=sprint drives today's sprint instead of the whole stage, so the run spec
+  // plumbing can be checked headlessly — a screenshot can't press a button.
+  if (QS.get('mode') === 'sprint') {
+    const sec = sprintOfDay(stage);
+    run = { mode: 'sprint', from: sec.start, to: sec.end, key: sec.key,
+            title: ATMOS[sec.key]?.name || sec.key };
+    resetRun();
+  }
   const at = parseFloat(QS.get('at') || '0');
   for (let t = 0; t < at; t += FIXED) step(FIXED);
   running = true;

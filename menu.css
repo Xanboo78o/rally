@@ -1,0 +1,175 @@
+/* menu.css — the shell: home, standings, how-to, and the results card.
+ *
+ * Its own file, and its own markup built in js/menu.js, so the menu can grow without
+ * touching index.html or style.css. Two sessions are working in this repo.
+ *
+ * PORTRAIT FIRST. You open a link in the group chat holding the phone upright, and you
+ * only turn it sideways to drive. So the menu stacks in portrait, sits side by side in
+ * landscape, and never asks you to rotate to press a button. */
+
+#menu {
+  position: fixed; inset: 0; z-index: 20;
+  display: none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(216,67,58,.16), transparent 60%),
+    linear-gradient(180deg, #171b20 0%, #101316 100%);
+  color: var(--ink);
+  overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+#menu.on { display: block; }
+#menu .screen { display: none; max-width: 940px; margin: 0 auto; }
+#menu .screen.on { display: block; }
+
+/* ---------------------------------------------------------------- header ---- */
+.mHead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.mHead h1 {
+  margin: 0; font: 900 26px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .22em;
+}
+.mHead .streak {
+  margin-left: auto; display: flex; align-items: center; gap: 6px;
+  font: 700 11px/1 ui-monospace, Menlo, monospace; letter-spacing: .1em; color: var(--dim);
+}
+.mHead .streak b {
+  color: var(--ink); font: 800 15px/1 ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.mHead .streak i {
+  font-style: normal; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); box-shadow: 0 0 10px rgba(216,67,58,.9);
+}
+.mHead .streak.cold i { background: rgba(242,239,233,.25); box-shadow: none; }
+
+/* ------------------------------------------------------------------ cards ---- */
+.cards { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-aspect-ratio: 1/1) { .cards { grid-template-columns: 1fr 1fr; } }
+
+.mCard {
+  position: relative; text-align: left;
+  background: rgba(30,35,41,.9); border: 1px solid rgba(242,239,233,.12);
+  border-radius: 16px; padding: 16px 16px 14px;
+  display: flex; flex-direction: column;
+}
+.mCard .kind {
+  font: 700 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .18em; color: var(--dim);
+}
+.mCard h2 {
+  margin: 7px 0 2px; font: 900 21px/1.05 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .10em;
+}
+.mCard .sub { font: 600 11px/1.4 ui-monospace, Menlo, monospace; color: var(--dim); letter-spacing: .06em; }
+
+/* the row of times, which is the only thing on here you actually read twice */
+.mStats { display: flex; gap: 18px; margin: 13px 0 14px; }
+.mStats div { min-width: 0; }
+.mStats span { display: block; font: 700 9px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; color: var(--dim); }
+.mStats b {
+  display: block; margin-top: 5px;
+  font: 800 22px/1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.mStats b.none { color: rgba(242,239,233,.3); }
+
+.mGo {
+  margin-top: auto; width: 100%; border: 0; border-radius: 11px; cursor: pointer;
+  background: var(--red); color: #fff; padding: 15px;
+  font: 800 14px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .14em;
+}
+.mGo:active { transform: translateY(1px); }
+.mGo[disabled] { background: rgba(242,239,233,.09); color: rgba(242,239,233,.38); cursor: default; }
+
+/* the countdown, which is how you know whether it's worth opening yet */
+.mClock {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 12px;
+  font: 700 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .1em; color: var(--dim);
+}
+.mClock em { font-style: normal; color: var(--ink); font-variant-numeric: tabular-nums; }
+.mClock.shut em { color: #e8b04b; }
+
+/* ------------------------------------------------------------------- rows ---- */
+.mRow {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  background: none; border: 0; border-top: 1px solid rgba(242,239,233,.10);
+  color: var(--ink); text-align: left; cursor: pointer;
+  padding: 15px 2px; font: 700 12px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .12em;
+}
+.mRow .arrow { margin-left: auto; color: var(--dim); font-size: 15px; }
+.mList { margin-top: 14px; }
+
+/* ------------------------------------------------------------- standings ---- */
+.mBack {
+  background: none; border: 0; color: var(--dim); cursor: pointer; padding: 6px 0;
+  font: 700 11px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em;
+}
+.mNote {
+  margin: 14px 0 0; padding: 12px 13px; border-radius: 11px;
+  background: rgba(242,239,233,.05); border: 1px solid rgba(242,239,233,.08);
+  font: 500 12px/1.5 ui-sans-serif, system-ui, sans-serif; color: rgba(242,239,233,.62);
+}
+.mTable { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.mTable th {
+  text-align: left; padding: 7px 8px; color: var(--dim);
+  font: 700 9px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em;
+}
+.mTable td {
+  padding: 9px 8px; border-top: 1px solid rgba(242,239,233,.08);
+  font: 600 13px/1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
+}
+.mTable td.pos { color: var(--dim); width: 34px; }
+.mTable tr.me td { color: var(--ink); }
+.mTable td.pts { text-align: right; font-weight: 800; }
+
+.mPoints { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.mPoints span {
+  display: inline-flex; align-items: baseline; gap: 5px; padding: 7px 9px; border-radius: 8px;
+  background: rgba(242,239,233,.06);
+  font: 700 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .06em; color: var(--dim);
+}
+.mPoints span b { color: var(--ink); font: 800 13px/1 ui-monospace, Menlo, monospace; }
+
+/* ----------------------------------------------------------------- how-to ---- */
+.mHow { margin: 0; padding: 0; list-style: none; }
+.mHow li {
+  padding: 13px 0; border-top: 1px solid rgba(242,239,233,.08);
+  font: 500 13px/1.5 ui-sans-serif, system-ui, sans-serif; color: rgba(242,239,233,.78);
+}
+.mHow li b { display: block; color: var(--ink); letter-spacing: .1em; font-weight: 800; margin-bottom: 3px; font-size: 12px; }
+.mKeys { margin-top: 14px; font: 600 10px/1.6 ui-monospace, Menlo, monospace; color: rgba(242,239,233,.4); }
+
+@media (max-height: 430px) and (orientation: landscape) {
+  .mHead { margin-bottom: 10px; }
+  .mHead h1 { font-size: 20px; }
+  .mCard { padding: 12px 13px 11px; border-radius: 13px; }
+  .mCard h2 { font-size: 17px; }
+  .mStats { margin: 9px 0 10px; }
+  .mStats b { font-size: 18px; }
+  .mGo { padding: 12px; }
+}
+
+/* ---- badges: the one-glance answer to "why are there two of these" ---- */
+.mCard .kind { display: flex; align-items: center; gap: 8px; }
+.badge {
+  margin-left: auto; font-style: normal; padding: 4px 7px; border-radius: 5px;
+  font: 800 9px/1 ui-monospace, Menlo, monospace; letter-spacing: .1em; white-space: nowrap;
+}
+.badge.pts { background: rgba(216,67,58,.20); color: #ff9d94; }
+.badge.streak { background: rgba(242,239,233,.08); color: var(--dim); }
+
+/* The Stage of the Day is the event, so it gets the weight. */
+.mCard[data-card="stage"] { border-color: rgba(216,67,58,.34); }
+
+/* Two real columns with a rule between them — 18px of gap read as one blob. */
+.mStats { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.mStats div + div { border-left: 1px solid rgba(242,239,233,.10); padding-left: 16px; }
+
+/* Portrait: sit the content in the middle instead of stranding it at the top. */
+#menu .screen[data-screen="home"] {
+  min-height: calc(100dvh - 2 * max(18px, env(safe-area-inset-top)));
+  display: none; flex-direction: column; justify-content: center;
+}
+#menu .screen[data-screen="home"].on { display: flex; }
+@media (max-height: 430px) and (orientation: landscape) {
+  #menu .screen[data-screen="home"] { justify-content: flex-start; }
+}
