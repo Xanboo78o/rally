@@ -17,12 +17,12 @@ export function buildCockpit(THREE) {
   // Sits just proud of the dash overlay, so you get a strip of real, lit bonnet
   // between the road and the interior.
   const hood = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.11, 1.9), mid);
-  hood.position.set(0, -0.70, -2.40);
+  hood.position.set(0, -0.92, -2.75);
   g.add(hood);
 
   // A slight lip at the leading edge, so the nose reads against the road.
   const lip = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.07, 0.16), new THREE.MeshLambertMaterial({ color: 0x474d57 }));
-  lip.position.set(0, -0.66, -3.30);
+  lip.position.set(0, -0.88, -3.60);
   g.add(lip);
 
   return { group: g };

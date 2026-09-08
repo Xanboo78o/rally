@@ -14,9 +14,13 @@ export const AIR = {
   scaleIn: 0.09,        // seconds to ease into dilation
   scaleOut: 0.16,
 
-  fovGround: 62,
-  fovAir: 86,
-  fovLand: 56,          // the snap-in on touchdown
+  // FOV is SPEED-LINKED. A fixed wide angle looks fisheye when you're crawling; one
+  // that opens up as you accelerate is one of the strongest speed cues there is,
+  // because it stretches the periphery exactly when you want the world rushing past.
+  fovBase: 58,
+  fovSpeed: 26,         // added at full chat -> 84 flat out
+  fovAirBonus: 8,       // extra while flying
+  fovLandDrop: 12,      // slammed in on touchdown, then walks back out
   fovAirEase: 0.55,
   fovLandEase: 0.10,
   fovRecover: 0.40,
@@ -35,7 +39,7 @@ const approach = (a, b, tau, dt) => a + (b - a) * (1 - Math.exp(-dt / Math.max(t
 export class AirFx {
   constructor() {
     this.timeScale = 1;
-    this.fov = AIR.fovGround;
+    this.fov = AIR.fovBase;
     this.duck = 1;
     this.dip = 0;
     this.shake = 0;
@@ -44,7 +48,7 @@ export class AirFx {
   }
 
   // Call with real (undilated) dt, before physics, so the dilation applies this frame.
-  update(dtReal, car) {
+  update(dtReal, car, speedFactor) {
     const flying = car.airborne && car.airTime > AIR.minAirForFx;
 
     if (car.justLanded) {
@@ -53,7 +57,7 @@ export class AirFx {
         this._landT = 0;
         this.dip = AIR.dipMax * (0.35 + 0.65 * car.landingHit);
         this.shake = car.landingHit;
-        this.fov = AIR.fovLand;
+        this.fov = Math.max(30, this.fov - AIR.fovLandDrop);
       }
     }
     this._landT += dtReal;
@@ -65,8 +69,9 @@ export class AirFx {
     this.duck = approach(this.duck, flying ? AIR.duckTo : 1,
       flying ? AIR.duckIn : AIR.duckOut, dtReal);
 
-    // On landing the FOV was slammed to fovLand; let it walk back out.
-    const fovTarget = flying ? AIR.fovAir : AIR.fovGround;
+    // On landing the FOV was slammed inward; let it walk back out.
+    const sf = Math.max(0, Math.min(1, speedFactor || 0));
+    const fovTarget = AIR.fovBase + AIR.fovSpeed * sf + (flying ? AIR.fovAirBonus : 0);
     const tau = flying ? AIR.fovAirEase : (this._landT < AIR.fovRecover ? AIR.fovRecover : AIR.fovLandEase);
     this.fov = approach(this.fov, fovTarget, tau, dtReal);
 

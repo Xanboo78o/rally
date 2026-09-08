@@ -208,23 +208,23 @@ html, body {
 
 /* ---- dash ---- */
 .dashTop {
-  top: 115vh; left: -6%; right: -6%; height: 6vh;
+  top: 123vh; left: -6%; right: -6%; height: 6vh;
   background: linear-gradient(180deg, #474b52, var(--dashTop));
   border-radius: 44% 44% 0 0 / 70% 70% 0 0;
 }
 .dash {
-  top: 120vh; left: -6%; right: -6%; height: 26vh;
+  top: 128vh; left: -6%; right: -6%; height: 26vh;
   background: linear-gradient(180deg, var(--dashTop) 0%, var(--dashFa) 30%, var(--deep) 100%);
 }
 .binnacle {
-  top: 110.5vh; left: 50%; width: 34vh; height: 11vh;
+  top: 118.5vh; left: 50%; width: 34vh; height: 11vh;
   transform: translateX(-50%);
   background: linear-gradient(180deg, #3d4148, #21242a);
   border-radius: 46% 46% 10% 10% / 66% 66% 22% 22%;
   box-shadow: inset 0 2px 0 rgba(255,255,255,.06);
 }
 .vent {
-  top: 121vh; height: 3.4vh; width: 16%;
+  top: 129vh; height: 3.4vh; width: 16%;
   background: var(--slot);
   border-radius: 4px;
   box-shadow: inset 0 1px 2px rgba(0,0,0,.7);
@@ -233,23 +233,23 @@ html, body {
 .vent.v2 { right: 8%; }
 /* centre stack sits right of the wheel — the driver is on the left */
 .stack {
-  top: 124.5vh; left: 62%; width: 22%; height: 14vh;
+  top: 132.5vh; left: 62%; width: 22%; height: 14vh;
   background: linear-gradient(180deg, #2e3238, #1b1e22);
   border-radius: 7px;
 }
 .hazard {
-  top: 126vh; left: 71.5%; width: 3.4vh; height: 3.4vh;
+  top: 134vh; left: 71.5%; width: 3.4vh; height: 3.4vh;
   background: #7d2b25; border-radius: 5px;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.10);
 }
 .stalk {
-  top: 118vh; left: 27%; width: 13%; height: 1.5vh;
+  top: 126vh; left: 27%; width: 13%; height: 1.5vh;
   background: #2b2e34; border-radius: 3px; transform: rotate(-7deg);
 }
 
 /* ---- wheel ---- */
 #wheelSvg {
-  top: 111vh; left: 50%; width: 48vh; height: 48vh;
+  top: 119vh; left: 50%; width: 48vh; height: 48vh;
   transform: translateX(-50%); overflow: visible;
 }
 #wheelSvg .rim     { fill: none; stroke: #3e434b; stroke-width: 17; stroke-linecap: round; }
@@ -264,15 +264,15 @@ html, body {
 
 /* ---- lower cabin: only there when you tilt down to look ---- */
 .lower {
-  top: 146vh; left: -8%; right: -8%; height: 50vh;
+  top: 152vh; left: -8%; right: -8%; height: 50vh;
   background: linear-gradient(180deg, #1e2125 0%, #15171a 40%, #0c0d0f 100%);
 }
 .tunnel {
-  top: 147vh; left: 24%; right: 24%; height: 34vh;
+  top: 153vh; left: 24%; right: 24%; height: 34vh;
   background: linear-gradient(180deg, #2f333a, #1e2126);
   border-radius: 16px 16px 0 0;
 }
-.shifter { top: 152vh; left: 56%; width: 9vh; height: 13vh; }
+.shifter { top: 158vh; left: 56%; width: 9vh; height: 13vh; }
 .shifter i {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, #16181c 0%, #22252a 46%, #2b2f35 100%);
@@ -280,7 +280,7 @@ html, body {
   box-shadow: inset 0 2px 0 rgba(255,255,255,.08);
 }
 .handbrake {
-  top: 158vh; left: 40%; width: 16%; height: 3vh;
+  top: 164vh; left: 40%; width: 16%; height: 3vh;
   background: linear-gradient(90deg, #1b1e22, #2a2e34);
   border-radius: 4px; transform: rotate(-13deg);
 }

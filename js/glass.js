@@ -13,6 +13,15 @@ export class Glass {
     this.ctx = canvas.getContext('2d');
     this.specks = [];
     this.drops = [];
+    this.speed = 0;
+
+    // Motion streaks. Fixed angles, but each one crawls outward from the centre, so at
+    // speed the periphery genuinely flows past you. Only shows up once you're moving
+    // quickly, so it never makes a slow section look silly.
+    this.streaks = [];
+    for (let i = 0; i < 54; i++) {
+      this.streaks.push({ a: (i / 54) * 6.283 + (i % 7) * 0.09, p: (i * 37 % 100) / 100, s: 0.6 + (i % 5) * 0.22 });
+    }
     this.resize();
     addEventListener('resize', () => this.resize());
   }
@@ -59,6 +68,11 @@ export class Glass {
     const rate = speedFactor * (onRoad ? 1.6 : 16);
     if (Math.random() < rate * dt) this.addDust(onRoad ? 1 : 3);
 
+    for (const st of this.streaks) {
+      st.p += dt * (0.35 + speedFactor * 2.4) * st.s;
+      if (st.p > 1) st.p -= 1;
+    }
+
     // Airflow drags droplets up and sideways at speed, not straight down.
     for (const d of this.drops) {
       d.y += (d.v - speedFactor * 42) * dt;
@@ -69,6 +83,28 @@ export class Glass {
   draw() {
     const c = this.ctx;
     c.clearRect(0, 0, this.w, this.h);
+
+    // ---- speed streaks -----------------------------------------------------
+    const sf = this.speed;
+    if (sf > 0.45) {
+      const k = (sf - 0.45) / 0.55;
+      const cx = this.w * 0.5, cy = this.h * 0.52;
+      const rMin = Math.min(this.w, this.h) * 0.30, rMax = Math.hypot(this.w, this.h) * 0.62;
+      c.lineCap = 'round';
+      for (const st of this.streaks) {
+        const r = rMin + st.p * (rMax - rMin);
+        const len = (26 + 130 * k) * st.s;
+        const ca = Math.cos(st.a), sa = Math.sin(st.a);
+        // fade in as it leaves the centre and out again at the edge
+        const fade = Math.sin(Math.min(1, st.p) * Math.PI);
+        c.strokeStyle = 'rgba(255,255,255,' + (0.11 * k * fade).toFixed(3) + ')';
+        c.lineWidth = 1 + 2.2 * k * st.s;
+        c.beginPath();
+        c.moveTo(cx + ca * r, cy + sa * r);
+        c.lineTo(cx + ca * (r + len), cy + sa * (r + len));
+        c.stroke();
+      }
+    }
 
     for (const s of this.specks) {
       c.fillStyle = 'rgba(126,110,88,' + s.a + ')';

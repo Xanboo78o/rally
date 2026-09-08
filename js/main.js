@@ -42,7 +42,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9fb4c4);
 scene.fog = new THREE.Fog(0x9fb4c4, 120, 620);
 
-const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.12, 2000);
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.12, 2000);
 scene.add(camera);
 
 scene.add(new THREE.HemisphereLight(0xcfe0ee, 0x40492f, 1.05));
@@ -143,7 +143,7 @@ function frame(now) {
   if (!running) return;
 
   controls.update(dtReal);
-  const ts = air.update(dtReal, car);
+  const ts = air.update(dtReal, car, car.speedFactor);
 
   acc += dtReal * ts;
   let guard = 0;
@@ -222,7 +222,8 @@ function render(dtReal) {
   const s = Math.sin(car.yaw), c = Math.cos(car.yaw);
   eye.set(
     car.x + (-0.34 * c + -0.15 * s),
-    car.y + 1.16 - air.dip,
+    car.y + 1.28 - air.dip,   // a touch higher: you see more road surface, and more
+                              // visible ground is more optical flow
     car.z + (0.34 * s + -0.15 * c)
   );
 
@@ -269,6 +270,7 @@ function render(dtReal) {
   rimEl.setAttribute('transform', 'rotate(' + (wheel.pos * VISUAL_LOCK * 57.2958).toFixed(2) + ')');
 
   glass.update(dtReal, car.speedFactor, ground.onRoad);
+  glass.speed = car.speedFactor;
   glass.draw();
 
   sound.update(car.speedFactor, ground.onRoad, air.duck, dtReal);

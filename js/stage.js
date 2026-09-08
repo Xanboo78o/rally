@@ -184,32 +184,36 @@ export function buildStageMesh(THREE, stage) {
   // ---- wheel ruts ----------------------------------------------------------
   // Two worn lines down the road. They stream past right under the camera, which is
   // most of what tells you you're ON something rather than gliding over it.
+  // DASHED, not continuous. A solid line running the way you're travelling barely
+  // appears to move — it's the worst motion cue there is. Broken into dashes it
+  // streams past, which is most of what tells you how fast you're going.
   const rut = { pos: [], idx: [] };
-  const RUT_OFF = 0.78, RUT_W = 0.17;
-  for (let i = 0; i < S.length; i++) {
-    const s = S[i];
-    const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+  const RUT_OFF = 0.78, RUT_W = 0.19;
+  let rq = 0;
+  for (let i = 0; i + 3 < S.length; i += 5) {          // 6m dash, 4m gap
     for (const side of [-1, 1]) {
-      const c0 = RUT_OFF * side - RUT_W, c1 = RUT_OFF * side + RUT_W;
-      rut.pos.push(s.x + rx * c0, s.y + 0.035, s.z + rz * c0);
-      rut.pos.push(s.x + rx * c1, s.y + 0.035, s.z + rz * c1);
-    }
-    if (i > 0) {
-      for (const q of [0, 1]) {
-        const base = (i - 1) * 4 + q * 2, next = i * 4 + q * 2;
-        rut.idx.push(base, next, base + 1, base + 1, next, next + 1);
+      for (let k = 0; k < 3; k++) {
+        const s = S[i + k];
+        const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+        const c0 = RUT_OFF * side - RUT_W, c1 = RUT_OFF * side + RUT_W;
+        rut.pos.push(s.x + rx * c0, s.y + 0.035, s.z + rz * c0);
+        rut.pos.push(s.x + rx * c1, s.y + 0.035, s.z + rz * c1);
       }
+      const b = rq * 6;
+      rut.idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+      rut.idx.push(b + 2, b + 4, b + 3, b + 3, b + 4, b + 5);
+      rq++;
     }
   }
-  group.add(mk(rut, 0x82715a));
+  group.add(mk(rut, 0x7a6a53));
 
   // ---- edge posts, so you can read the road ahead in first person ----------
   const postGeo = new THREE.BoxGeometry(0.22, 1.15, 0.22);
   const postMat = new THREE.MeshLambertMaterial({ color: 0xdedad2 });
-  const posts = new THREE.InstancedMesh(postGeo, postMat, Math.ceil(S.length / 6) * 2 + 8);
+  const posts = new THREE.InstancedMesh(postGeo, postMat, Math.ceil(S.length / 4) * 2 + 8);
   const m = new THREE.Matrix4();
   let pi = 0;
-  for (let i = 0; i < S.length; i += 6) {
+  for (let i = 0; i < S.length; i += 4) {
     const s = S[i];
     const rx = Math.cos(s.head), rz = -Math.sin(s.head);
     for (const side of [-1, 1]) {
@@ -239,12 +243,57 @@ export function buildStageMesh(THREE, stage) {
   trees.count = ti;
   group.add(trees);
 
+  // ---- SPEED: things that pass CLOSE to the camera --------------------------
+  // Perceived speed is optical flow, and flow is dominated by whatever is nearest.
+  // Distant trees barely move; grass a metre off your wheel screams past. This is the
+  // single biggest lever on how fast the game feels, and there was nothing here.
+  const tuftGeo = new THREE.ConeGeometry(0.30, 0.85, 4);
+  const tuftMat = new THREE.MeshLambertMaterial({ color: 0x5f7040 });
+  const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, S.length * 6 + 16);
+  let ti2 = 0;
+  for (let i = 0; i < S.length; i++) {
+    const s = S[i];
+    const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+    for (const side of [-1, 1]) {
+      for (let k = 0; k < 3; k++) {
+        const j = (i * 31 + k * 17 + (side > 0 ? 13 : 0)) % 19;
+        const d = s.w + 0.35 + k * 0.75 + j * 0.09;
+        m.makeTranslation(s.x + rx * d * side, s.y - 0.12 - (j % 4) * 0.03, s.z + rz * d * side);
+        tufts.setMatrixAt(ti2++, m);
+      }
+    }
+  }
+  tufts.count = ti2;
+  group.add(tufts);
+
+  // ---- surface scars ACROSS the road ---------------------------------------
+  // The ruts run parallel to travel, so they hardly stream at all. Transverse marks
+  // rush toward you and past, which is what actually reads as ground speed.
+  const scar = { pos: [], idx: [] };
+  let sc = 0;
+  for (let i = 4; i < S.length - 3; i += 3) {
+    const j = (i * 41) % 23;
+    const s0 = S[i], s1 = S[i + 1 + (j % 2)];
+    const r0x = Math.cos(s0.head), r0z = -Math.sin(s0.head);
+    const r1x = Math.cos(s1.head), r1z = -Math.sin(s1.head);
+    const c = ((j % 11) - 5) * 0.42;              // wander across the road
+    const half = 0.9 + (j % 5) * 0.45;
+    scar.pos.push(s0.x + r0x * (c - half), s0.y + 0.045, s0.z + r0z * (c - half));
+    scar.pos.push(s0.x + r0x * (c + half), s0.y + 0.045, s0.z + r0z * (c + half));
+    scar.pos.push(s1.x + r1x * (c - half), s1.y + 0.045, s1.z + r1z * (c - half));
+    scar.pos.push(s1.x + r1x * (c + half), s1.y + 0.045, s1.z + r1z * (c + half));
+    const b = sc * 4;
+    scar.idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+    sc++;
+  }
+  group.add(mk(scar, 0x6f6049));
+
   // ---- stones along the verge, for close-range motion cues -----------------
   const stoneGeo = new THREE.DodecahedronGeometry(0.20, 0);
   const stoneMat = new THREE.MeshLambertMaterial({ color: 0x8c8377 });
-  const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, Math.ceil(S.length / 2) * 2 + 8);
+  const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, S.length * 2 + 8);
   let si2 = 0;
-  for (let i = 2; i < S.length; i += 2) {
+  for (let i = 1; i < S.length; i += 1) {
     const s = S[i];
     const rx = Math.cos(s.head), rz = -Math.sin(s.head);
     for (const side of [-1, 1]) {
