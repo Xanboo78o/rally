@@ -58,13 +58,17 @@ fix the label if it's wrong, and hit enter. Also: pick which radio sounds right.
       <button id="ok">✓ RIGHT (enter)</button>
       <button id="junk">✗ JUNK (x)</button>
       <button id="join">↩ JOINS PREVIOUS (j)</button>
+      <button id="shiftd">▼ PUSH DOWN ( ] )</button>
+      <button id="shiftu">▲ PULL UP ( [ )</button>
     </div>
   </div>
 
   <div class="bar" id="bar"></div>
   <div class="keys">
     <b>space</b> replay &nbsp; <b>enter</b> accept + next &nbsp; <b>←/→</b> move &nbsp;
-    <b>x</b> junk &nbsp; <b>j</b> this clip is the tail of the one before &nbsp; <b>0-3</b> radio
+    <b>x</b> junk &nbsp; <b>j</b> this clip is the tail of the one before &nbsp; <b>0-3</b> radio<br>
+    <b>]</b> everything from here is one late — push the labels down &nbsp;
+    <b>[</b> everything from here is one early — pull them up
   </div>
 
   <div class="btns">
@@ -76,7 +80,7 @@ fix the label if it's wrong, and hit enter. Also: pick which radio sounds right.
 </div>
 
 <script type="module">
-import { makeRadio } from './js/radio.js?v=1788894866';
+import { makeRadio } from './js/radio.js?v=1788895070';
 
 const GROUPS = [
   ['CORNERS', ['left-1','left-2','left-3','left-4','left-5','left-6',
@@ -99,13 +103,15 @@ const GROUPS = [
     'crash-big','crash-huge','rolled','you-okay','miracle-landing','near-miss','big-air-whoop',
     'still-with-me','youre-in-a-field','dont-do-that-again','nice']],
 ];
-const GUESS = [], GRP = [];
+// He said "alright" before starting, so clip 1 is not a line and every label after it
+// sits one place further down than the script does.
+const GUESS = ['alright'], GRP = ['(slate)'];
 for (const [g, list] of GROUPS) for (const s of list) { GUESS.push(s); GRP.push(g); }
 
 const N = 125;
-const KEY = 'rally.vo.labels';
+const KEY = 'rally.vo.labels2';   // bumped when the slate shifted everything
 let state = JSON.parse(localStorage.getItem(KEY) || 'null')
-         || GUESS.map((s, i) => ({ label: s || '', done: false, junk: false, join: false }));
+         || GUESS.map((s, i) => ({ label: s || '', done: false, junk: i === 0, join: false }));
 if (state.length !== N) state = GUESS.map(s => ({ label: s || '', done:false, junk:false, join:false }));
 let cur = state.findIndex(s => !s.done); if (cur < 0) cur = 0;
 
@@ -173,6 +179,20 @@ $('play').onclick = () => play();
 $('ok').onclick = () => { state[cur].done = true; state[cur].junk = false; go(1); };
 $('junk').onclick = () => { state[cur].junk = true; state[cur].done = true; go(1); };
 $('join').onclick = () => { state[cur].join = !state[cur].join; commit(); draw(); };
+// A stray noise anywhere in the take shifts every label after it, and retyping 90 of
+// them is not a thing anyone will do. So the fix is one key: slide the labels from here
+// to the end in either direction. Everything moved goes back to unconfirmed, because it
+// is now unconfirmed.
+function shift(dir) {
+  commit();
+  if (dir > 0) { for (let k = N - 1; k > cur; k--) state[k].label = state[k - 1].label; state[cur].label = ''; }
+  else { for (let k = cur; k < N - 1; k++) state[k].label = state[k + 1].label; state[N - 1].label = ''; }
+  for (let k = cur; k < N; k++) state[k].done = false;
+  localStorage.setItem(KEY, JSON.stringify(state));
+  draw();
+}
+$('shiftd').onclick = () => shift(1);
+$('shiftu').onclick = () => shift(-1);
 $('reset').onclick = () => { if (confirm('throw away all labels?')) { localStorage.removeItem(KEY); location.reload(); } };
 $('save').onclick = () => {
   commit();
@@ -206,6 +226,8 @@ addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
   else if (e.key === 'x' || e.key === 'X') { $('junk').click(); }
   else if (e.key === 'j' || e.key === 'J') { $('join').click(); }
+  else if (e.key === ']') { e.preventDefault(); shift(1); }
+  else if (e.key === '[') { e.preventDefault(); shift(-1); }
   else if ('0123'.includes(e.key)) setPreset(['dry', 'helmet', 'cheap', 'broken'][+e.key]);
   else if (e.key === 'Escape') $('label').blur();
 });
