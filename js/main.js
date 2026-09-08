@@ -24,7 +24,10 @@ const $ = id => document.getElementById(id);
 // every run, so you can learn them — and because it's driven by position rather than
 // random noise, it reads as a SURFACE rather than as camera shake.
 function surfaceBump(d) {
-  return Math.sin(d * 2.7) * 0.55 + Math.sin(d * 6.1 + 1.3) * 0.30 + Math.sin(d * 13.7 + 2.9) * 0.15;
+  // Long wavelengths on purpose. The first version peaked around a 2m wavelength, which
+  // at speed is ~17Hz — that's a vibration you can't see. 11m and 5m come through at a
+  // few Hz, which reads as the car being thrown about by actual bumps.
+  return Math.sin(d * 0.55) * 0.50 + Math.sin(d * 1.31 + 1.3) * 0.32 + Math.sin(d * 3.1 + 2.9) * 0.18;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,10 +237,13 @@ function render(dtReal) {
   let rumbleRoll = 0, rumblePitch = 0;
   if (!car.airborne) {
     const d = ground.progress;
-    const amp = 0.030 * car.speedFactor * (ground.onRoad ? 1 : 3.2);
-    eye.y += surfaceBump(d) * amp;
-    rumbleRoll = surfaceBump(d * 0.7 + 11) * amp * 0.9;
-    rumblePitch = surfaceBump(d * 1.3 + 5) * amp * 0.7;
+    const k = car.speedFactor * (ground.onRoad ? 1 : 3.0);
+    // Moving the camera up and down barely shifts the view — a translation hardly
+    // changes what a wide lens sees. The PITCH wobble is what actually throws the
+    // picture around, so that carries the bump and the rise/fall backs it up.
+    eye.y += surfaceBump(d) * 0.055 * k;
+    rumblePitch = surfaceBump(d * 1.31 + 5) * 0.042 * k;
+    rumbleRoll = surfaceBump(d * 0.77 + 11) * 0.030 * k;
   }
 
   camera.position.copy(eye);
