@@ -14,9 +14,9 @@ export const AIR = {
   scaleIn: 0.09,        // seconds to ease into dilation
   scaleOut: 0.16,
 
-  fovGround: 70,
-  fovAir: 86,
-  fovLand: 62,          // the snap-in on touchdown
+  fovGround: 62,
+  fovAir: 92,
+  fovLand: 56,          // the snap-in on touchdown
   fovAirEase: 0.55,
   fovLandEase: 0.10,
   fovRecover: 0.40,

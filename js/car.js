@@ -38,7 +38,7 @@ export const CAR = {
   rollTrip: 8.5,        // sideways m/s that tips the car when a wheel digs in off-road
   rollLanding: 0.90,    // landing severity that puts it on its roof
 
-  gravity: 22.5,        // exaggerated, so jumps come down decisively
+  gravity: 18.0,        // lower than before so launches hang longer
   airYaw: 1.35,         // how much the wheel can rotate you in mid-air
 };
 
@@ -58,6 +58,7 @@ export class Car {
     this._dsCool = 0;
     this.rolled = false;
     this.rollSpin = 0;
+    this.accelLong = 0;
     this.pitch = 0;        // visual only, from suspension + air
     this.roll = 0;
   }
@@ -76,6 +77,7 @@ export class Car {
   // ground: { height, onRoad } sampled from the stage at the car's position.
   step(dt, wheelPos, handbrake, ground) {
     if (this._dsCool > 0) this._dsCool -= dt;
+    const vfBefore = this.vf;
 
     // ---- vertical: follow the road, launch off crests, land ------------------
     const wasAir = this.airborne;
@@ -205,7 +207,19 @@ export class Car {
       ? this.roll + this.rollSpin * dt
       : Math.max(-0.5, Math.min(0.5, latAccel * CAR.leanPerG)) - this.vr * 0.004;
     this.roll += (targetRoll - this.roll) * Math.min(1, 9 * dt);
-    const targetPitch = this.airborne ? Math.max(-0.22, Math.min(0.22, -this.vy * 0.012)) : 0;
-    this.pitch += (targetPitch - this.pitch) * Math.min(1, 7 * dt);
+    // PITCH = the angle of the direction you are actually travelling. While planted vy
+    // is the road's gradient, so the car tilts with the hill; in the air it's the flight
+    // path, so the nose follows the arc. One formula, continuous across takeoff and
+    // landing, and cresting swings the view through ~30 degrees.
+    //
+    // This used to be hardcoded to 0 on the ground, which pinned the horizon to the
+    // exact centre of the screen for the whole stage — a gyro-stabilised drone holding
+    // altitude over terrain. That, not the lean, was why it felt like a plane.
+    const travelPitch = Math.atan2(this.vy, Math.max(5, Math.abs(this.vf)));
+    // Weight transfer on top: it squats under power and dives under braking.
+    this.accelLong = (this.vf - vfBefore) / Math.max(dt, 1e-6);
+    const transfer = this.airborne ? 0 : Math.max(-0.10, Math.min(0.10, this.accelLong * 0.010));
+    const targetPitch = Math.max(-0.55, Math.min(0.55, travelPitch * 0.85 + transfer));
+    this.pitch += (targetPitch - this.pitch) * Math.min(1, 12 * dt);
   }
 }
