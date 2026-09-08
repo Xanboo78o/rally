@@ -270,7 +270,9 @@ function resetRun() {
   shownPlace = atmosAt(stage.sections, run.from).name;
   $('finish').classList.remove('show');
   say(SEGMENTS[s0.seg].note);
-  countIn = AUTO ? -99 : 5.0; countShown = null;
+  // Headless runs screenshot at exact seconds, so they skip the count and drive — but
+  // ?count=1 holds the car on the line, which is the only way to photograph the start.
+  countIn = (AUTO && QS.get('count') !== '1') ? -99 : 5.0; countShown = null;
   voice.silence();
 }
 
@@ -335,7 +337,10 @@ function frame(now) {
   // The start-line count. No physics runs, so the car sits on the line and the world
   // stays there to be looked at — which is the whole reason the start area exists.
   if (countIn > -0.9) {
-    countIn -= dtReal;
+    // ?count=1 parks a headless run on the line for good: virtual time races through
+    // five real seconds long before the shutter, so a photograph of the start area
+    // needs the clock stopped, not started.
+    if (!(AUTO && QS.get('count') === '1')) countIn -= dtReal;
     const n = countIn > 0 ? Math.ceil(countIn) : 'GO';
     if (n !== countShown) {
       countShown = n;

@@ -138,11 +138,14 @@ export class Menu {
 
   unpause() { this.pauseEl.classList.remove('on'); }
 
-  // n > 0 shows the number; 0 clears it.
+  // n > 0 shows the number; 0 clears it. A string shows as-is, which is how the start
+  // line gets to say GO rather than a sixth number.
   count(n) {
-    this.countEl.textContent = n > 0 ? String(n) : '';
-    this.countEl.classList.toggle('on', n > 0);
-    if (n > 0) { this.countEl.style.animation = 'none'; void this.countEl.offsetWidth; this.countEl.style.animation = ''; }
+    const s = typeof n === 'string' ? n : (n > 0 ? String(n) : '');
+    this.countEl.textContent = s;
+    this.countEl.classList.toggle('on', !!s);
+    this.countEl.classList.toggle('go', s === 'GO');
+    if (s) { this.countEl.style.animation = 'none'; void this.countEl.offsetWidth; this.countEl.style.animation = ''; }
   }
 
   _card(mode, title) {

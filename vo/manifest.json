@@ -1,0 +1,1034 @@
+[
+ {
+  "file": "left-1-1.mp3",
+  "slug": "left-1",
+  "take": 1,
+  "said": "left one",
+  "start": 3.59,
+  "dur": 0.12
+ },
+ {
+  "file": "left-2-1.mp3",
+  "slug": "left-2",
+  "take": 1,
+  "said": "left two",
+  "start": 3.79,
+  "dur": 0.2
+ },
+ {
+  "file": "left-3-1.mp3",
+  "slug": "left-3",
+  "take": 1,
+  "said": "left three",
+  "start": 4.53,
+  "dur": 0.88
+ },
+ {
+  "file": "left-4-1.mp3",
+  "slug": "left-4",
+  "take": 1,
+  "said": "left four",
+  "start": 5.76,
+  "dur": 0.47
+ },
+ {
+  "file": "left-5-1.mp3",
+  "slug": "left-5",
+  "take": 1,
+  "said": "left five",
+  "start": 6.88,
+  "dur": 0.21
+ },
+ {
+  "file": "left-6-1.mp3",
+  "slug": "left-6",
+  "take": 1,
+  "said": "left six",
+  "start": 7.8,
+  "dur": 0.18
+ },
+ {
+  "file": "right-1-1.mp3",
+  "slug": "right-1",
+  "take": 1,
+  "said": "right one",
+  "start": 8.64,
+  "dur": 0.14
+ },
+ {
+  "file": "right-2-1.mp3",
+  "slug": "right-2",
+  "take": 1,
+  "said": "right two",
+  "start": 9.54,
+  "dur": 0.17
+ },
+ {
+  "file": "right-3-1.mp3",
+  "slug": "right-3",
+  "take": 1,
+  "said": "right three",
+  "start": 10.34,
+  "dur": 0.16
+ },
+ {
+  "file": "right-4-1.mp3",
+  "slug": "right-4",
+  "take": 1,
+  "said": "right four",
+  "start": 11.15,
+  "dur": 0.14
+ },
+ {
+  "file": "right-5-1.mp3",
+  "slug": "right-5",
+  "take": 1,
+  "said": "right five",
+  "start": 11.88,
+  "dur": 0.11
+ },
+ {
+  "file": "right-6-1.mp3",
+  "slug": "right-6",
+  "take": 1,
+  "said": "right six",
+  "start": 12.58,
+  "dur": 0.19
+ },
+ {
+  "file": "hairpin-left-1.mp3",
+  "slug": "hairpin-left",
+  "take": 1,
+  "said": "hairpin left",
+  "start": 13.32,
+  "dur": 0.4
+ },
+ {
+  "file": "hairpin-left-2.mp3",
+  "slug": "hairpin-left",
+  "take": 2,
+  "said": "hairpin left",
+  "start": 14.48,
+  "dur": 0.18
+ },
+ {
+  "file": "hairpin-right-1.mp3",
+  "slug": "hairpin-right",
+  "take": 1,
+  "said": "hairpin right",
+  "start": 15.52,
+  "dur": 0.46
+ },
+ {
+  "file": "hairpin-right-2.mp3",
+  "slug": "hairpin-right",
+  "take": 2,
+  "said": "hairpin right",
+  "start": 16.54,
+  "dur": 0.41
+ },
+ {
+  "file": "long-1.mp3",
+  "slug": "long",
+  "take": 1,
+  "said": "long",
+  "start": 17.93,
+  "dur": 0.22
+ },
+ {
+  "file": "short-1.mp3",
+  "slug": "short",
+  "take": 1,
+  "said": "short",
+  "start": 18.52,
+  "dur": 0.24
+ },
+ {
+  "file": "tightens-1.mp3",
+  "slug": "tightens",
+  "take": 1,
+  "said": "tightens",
+  "start": 19.18,
+  "dur": 0.44
+ },
+ {
+  "file": "opens-1.mp3",
+  "slug": "opens",
+  "take": 1,
+  "said": "opens",
+  "start": 19.18,
+  "dur": 0.44
+ },
+ {
+  "file": "tight-1.mp3",
+  "slug": "tight",
+  "take": 1,
+  "said": "tight",
+  "start": 20.73,
+  "dur": 0.18
+ },
+ {
+  "file": "very-tight-1.mp3",
+  "slug": "very-tight",
+  "take": 1,
+  "said": "very tight",
+  "start": 21.21,
+  "dur": 0.37
+ },
+ {
+  "file": "square-1.mp3",
+  "slug": "square",
+  "take": 1,
+  "said": "square",
+  "start": 22.27,
+  "dur": 0.22
+ },
+ {
+  "file": "narrow-1.mp3",
+  "slug": "narrow",
+  "take": 1,
+  "said": "narrow",
+  "start": 22.77,
+  "dur": 0.29
+ },
+ {
+  "file": "narrows-1.mp3",
+  "slug": "narrows",
+  "take": 1,
+  "said": "narrows",
+  "start": 23.38,
+  "dur": 0.83
+ },
+ {
+  "file": "flat-1.mp3",
+  "slug": "flat",
+  "take": 1,
+  "said": "flat",
+  "start": 24.46,
+  "dur": 0.24
+ },
+ {
+  "file": "blind-1.mp3",
+  "slug": "blind",
+  "take": 1,
+  "said": "blind",
+  "start": 25.05,
+  "dur": 0.17
+ },
+ {
+  "file": "downhill-1.mp3",
+  "slug": "downhill",
+  "take": 1,
+  "said": "downhill",
+  "start": 26.11,
+  "dur": 0.34
+ },
+ {
+  "file": "uphill-1.mp3",
+  "slug": "uphill",
+  "take": 1,
+  "said": "uphill",
+  "start": 26.59,
+  "dur": 0.24
+ },
+ {
+  "file": "climbing-1.mp3",
+  "slug": "climbing",
+  "take": 1,
+  "said": "climbing",
+  "start": 27.11,
+  "dur": 0.26
+ },
+ {
+  "file": "over-crest-1.mp3",
+  "slug": "over-crest",
+  "take": 1,
+  "said": "over crest",
+  "start": 27.56,
+  "dur": 0.17
+ },
+ {
+  "file": "dont-cut-1.mp3",
+  "slug": "dont-cut",
+  "take": 1,
+  "said": "dont cut",
+  "start": 28.37,
+  "dur": 0.34
+ },
+ {
+  "file": "keep-left-1.mp3",
+  "slug": "keep-left",
+  "take": 1,
+  "said": "keep left",
+  "start": 28.37,
+  "dur": 0.34
+ },
+ {
+  "file": "keep-right-1.mp3",
+  "slug": "keep-right",
+  "take": 1,
+  "said": "keep right",
+  "start": 29.89,
+  "dur": 0.14
+ },
+ {
+  "file": "care-1.mp3",
+  "slug": "care",
+  "take": 1,
+  "said": "care",
+  "start": 30.78,
+  "dur": 0.17
+ },
+ {
+  "file": "d-30-1.mp3",
+  "slug": "d-30",
+  "take": 1,
+  "said": "thirty",
+  "start": 30.78,
+  "dur": 0.17
+ },
+ {
+  "file": "d-40-1.mp3",
+  "slug": "d-40",
+  "take": 1,
+  "said": "forty",
+  "start": 32.65,
+  "dur": 0.75
+ },
+ {
+  "file": "d-50-1.mp3",
+  "slug": "d-50",
+  "take": 1,
+  "said": "fifty",
+  "start": 33.85,
+  "dur": 0.11
+ },
+ {
+  "file": "d-60-1.mp3",
+  "slug": "d-60",
+  "take": 1,
+  "said": "sixty",
+  "start": 34.48,
+  "dur": 0.22
+ },
+ {
+  "file": "d-70-1.mp3",
+  "slug": "d-70",
+  "take": 1,
+  "said": "seventy",
+  "start": 35.05,
+  "dur": 0.27
+ },
+ {
+  "file": "d-80-1.mp3",
+  "slug": "d-80",
+  "take": 1,
+  "said": "eighty",
+  "start": 35.79,
+  "dur": 0.17
+ },
+ {
+  "file": "d-90-1.mp3",
+  "slug": "d-90",
+  "take": 1,
+  "said": "ninety",
+  "start": 36.34,
+  "dur": 0.29
+ },
+ {
+  "file": "d-100-1.mp3",
+  "slug": "d-100",
+  "take": 1,
+  "said": "one hundred",
+  "start": 36.97,
+  "dur": 0.36
+ },
+ {
+  "file": "d-120-1.mp3",
+  "slug": "d-120",
+  "take": 1,
+  "said": "one twenty",
+  "start": 38.26,
+  "dur": 0.44
+ },
+ {
+  "file": "d-150-1.mp3",
+  "slug": "d-150",
+  "take": 1,
+  "said": "one fifty",
+  "start": 39.3,
+  "dur": 0.1
+ },
+ {
+  "file": "d-200-1.mp3",
+  "slug": "d-200",
+  "take": 1,
+  "said": "two hundred",
+  "start": 40.24,
+  "dur": 0.36
+ },
+ {
+  "file": "caution-1.mp3",
+  "slug": "caution",
+  "take": 1,
+  "said": "caution",
+  "start": 41.65,
+  "dur": 0.26
+ },
+ {
+  "file": "caution-2.mp3",
+  "slug": "caution",
+  "take": 2,
+  "said": "caution",
+  "start": 42.27,
+  "dur": 0.29
+ },
+ {
+  "file": "jump-1.mp3",
+  "slug": "jump",
+  "take": 1,
+  "said": "jump",
+  "start": 43.49,
+  "dur": 0.13
+ },
+ {
+  "file": "big-jump-1.mp3",
+  "slug": "big-jump",
+  "take": 1,
+  "said": "big jump",
+  "start": 44.18,
+  "dur": 0.31
+ },
+ {
+  "file": "crest-1.mp3",
+  "slug": "crest",
+  "take": 1,
+  "said": "crest",
+  "start": 47.05,
+  "dur": 0.24
+ },
+ {
+  "file": "landing-1.mp3",
+  "slug": "landing",
+  "take": 1,
+  "said": "landing",
+  "start": 47.64,
+  "dur": 0.27
+ },
+ {
+  "file": "land-straight-1.mp3",
+  "slug": "land-straight",
+  "take": 1,
+  "said": "land straight",
+  "start": 48.23,
+  "dur": 0.37
+ },
+ {
+  "file": "bridge-1.mp3",
+  "slug": "bridge",
+  "take": 1,
+  "said": "bridge",
+  "start": 49.05,
+  "dur": 0.23
+ },
+ {
+  "file": "dont-touch-the-edge-1.mp3",
+  "slug": "dont-touch-the-edge",
+  "take": 1,
+  "said": "dont touch the edge",
+  "start": 49.65,
+  "dur": 0.5
+ },
+ {
+  "file": "rocks-inside-1.mp3",
+  "slug": "rocks-inside",
+  "take": 1,
+  "said": "rocks on the inside",
+  "start": 50.6,
+  "dur": 0.63
+ },
+ {
+  "file": "tree-inside-1.mp3",
+  "slug": "tree-inside",
+  "take": 1,
+  "said": "trees on the inside",
+  "start": 51.56,
+  "dur": 0.59
+ },
+ {
+  "file": "walls-both-sides-1.mp3",
+  "slug": "walls-both-sides",
+  "take": 1,
+  "said": "walls on both sides",
+  "start": 52.48,
+  "dur": 0.57
+ },
+ {
+  "file": "wall-on-the-left-1.mp3",
+  "slug": "wall-on-the-left",
+  "take": 1,
+  "said": "wall on the left",
+  "start": 53.45,
+  "dur": 0.45
+ },
+ {
+  "file": "wall-on-the-right-1.mp3",
+  "slug": "wall-on-the-right",
+  "take": 1,
+  "said": "wall on the right",
+  "start": 54.31,
+  "dur": 0.38
+ },
+ {
+  "file": "over-roots-1.mp3",
+  "slug": "over-roots",
+  "take": 1,
+  "said": "over roots",
+  "start": 55.17,
+  "dur": 0.37
+ },
+ {
+  "file": "over-water-1.mp3",
+  "slug": "over-water",
+  "take": 1,
+  "said": "over water",
+  "start": 56.07,
+  "dur": 0.47
+ },
+ {
+  "file": "road-falls-away-1.mp3",
+  "slug": "road-falls-away",
+  "take": 1,
+  "said": "road falls away",
+  "start": 57.04,
+  "dur": 0.57
+ },
+ {
+  "file": "nothing-outside-1.mp3",
+  "slug": "nothing-outside",
+  "take": 1,
+  "said": "nothing on the outside",
+  "start": 58.11,
+  "dur": 0.54
+ },
+ {
+  "file": "dont-drop-a-wheel-1.mp3",
+  "slug": "dont-drop-a-wheel",
+  "take": 1,
+  "said": "dont drop a wheel",
+  "start": 59.2,
+  "dur": 0.56
+ },
+ {
+  "file": "under-the-arch-1.mp3",
+  "slug": "under-the-arch",
+  "take": 1,
+  "said": "under arch",
+  "start": 60.27,
+  "dur": 0.53
+ },
+ {
+  "file": "narrowest-point-1.mp3",
+  "slug": "narrowest-point",
+  "take": 1,
+  "said": "narrowest point",
+  "start": 61.2,
+  "dur": 1.26
+ },
+ {
+  "file": "bumpy-1.mp3",
+  "slug": "bumpy",
+  "take": 1,
+  "said": "bumpy",
+  "start": 63.18,
+  "dur": 0.2
+ },
+ {
+  "file": "dust-1.mp3",
+  "slug": "dust",
+  "take": 1,
+  "said": "dust",
+  "start": 63.18,
+  "dur": 0.2
+ },
+ {
+  "file": "spikes-1.mp3",
+  "slug": "spikes",
+  "take": 1,
+  "said": "spikes",
+  "start": 64.06,
+  "dur": 0.27
+ },
+ {
+  "file": "someones-been-here-1.mp3",
+  "slug": "someones-been-here",
+  "take": 1,
+  "said": "someones been here",
+  "start": 64.73,
+  "dur": 1.97
+ },
+ {
+  "file": "and-1.mp3",
+  "slug": "and",
+  "take": 1,
+  "said": "and",
+  "start": 66.5,
+  "dur": 0.2
+ },
+ {
+  "file": "into-1.mp3",
+  "slug": "into",
+  "take": 1,
+  "said": "into",
+  "start": 67.3,
+  "dur": 0.31
+ },
+ {
+  "file": "then-1.mp3",
+  "slug": "then",
+  "take": 1,
+  "said": "then",
+  "start": 68.13,
+  "dur": 0.29
+ },
+ {
+  "file": "then-immediately-1.mp3",
+  "slug": "then-immediately",
+  "take": 1,
+  "said": "then immediately",
+  "start": 69.05,
+  "dur": 0.64
+ },
+ {
+  "file": "flat-out-1.mp3",
+  "slug": "flat-out",
+  "take": 1,
+  "said": "flat out",
+  "start": 71.46,
+  "dur": 0.39
+ },
+ {
+  "file": "start-turning-early-1.mp3",
+  "slug": "start-turning-early",
+  "take": 1,
+  "said": "start turning early",
+  "start": 72.61,
+  "dur": 0.78
+ },
+ {
+  "file": "hold-the-handbrake-1.mp3",
+  "slug": "hold-the-handbrake",
+  "take": 1,
+  "said": "hold the handbrake",
+  "start": 74.43,
+  "dur": 0.54
+ },
+ {
+  "file": "handbrake-1.mp3",
+  "slug": "handbrake",
+  "take": 1,
+  "said": "handbrake",
+  "start": 75.41,
+  "dur": 0.29
+ },
+ {
+  "file": "handbrake-again-1.mp3",
+  "slug": "handbrake-again",
+  "take": 1,
+  "said": "handbrake again",
+  "start": 76.16,
+  "dur": 1.65
+ },
+ {
+  "file": "flick-down-1.mp3",
+  "slug": "flick-down",
+  "take": 1,
+  "said": "flick down",
+  "start": 77.93,
+  "dur": 0.9
+ },
+ {
+  "file": "flick-down-to-rotate-1.mp3",
+  "slug": "flick-down-to-rotate",
+  "take": 1,
+  "said": "flick down to rotate",
+  "start": 78.9,
+  "dur": 0.58
+ },
+ {
+  "file": "dont-overturn-1.mp3",
+  "slug": "dont-overturn",
+  "take": 1,
+  "said": "dont overturn",
+  "start": 80.18,
+  "dur": 0.54
+ },
+ {
+  "file": "dont-lift-1.mp3",
+  "slug": "dont-lift",
+  "take": 1,
+  "said": "dont lift",
+  "start": 81.01,
+  "dur": 0.24
+ },
+ {
+  "file": "keep-the-rhythm-1.mp3",
+  "slug": "keep-the-rhythm",
+  "take": 1,
+  "said": "keep rhythm",
+  "start": 81.59,
+  "dur": 0.37
+ },
+ {
+  "file": "slow-it-down-1.mp3",
+  "slug": "slow-it-down",
+  "take": 1,
+  "said": "slow down",
+  "start": 82.35,
+  "dur": 0.36
+ },
+ {
+  "file": "slow-it-down-2.mp3",
+  "slug": "slow-it-down",
+  "take": 2,
+  "said": "slow down",
+  "start": 83.03,
+  "dur": 0.68
+ },
+ {
+  "file": "count-3-1.mp3",
+  "slug": "count-3",
+  "take": 1,
+  "said": "three",
+  "start": 84.98,
+  "dur": 0.18
+ },
+ {
+  "file": "count-2-1.mp3",
+  "slug": "count-2",
+  "take": 1,
+  "said": "two",
+  "start": 86.21,
+  "dur": 0.21
+ },
+ {
+  "file": "count-1-1.mp3",
+  "slug": "count-1",
+  "take": 1,
+  "said": "one",
+  "start": 87.39,
+  "dur": 0.19
+ },
+ {
+  "file": "count-go-1.mp3",
+  "slug": "count-go",
+  "take": 1,
+  "said": "go",
+  "start": 88.25,
+  "dur": 0.11
+ },
+ {
+  "file": "countdown-full-1.mp3",
+  "slug": "countdown-full",
+  "take": 1,
+  "said": "three two one go",
+  "start": 89.93,
+  "dur": 4.6
+ },
+ {
+  "file": "stage-start-1.mp3",
+  "slug": "stage-start",
+  "take": 1,
+  "said": "stage start",
+  "start": 94.42,
+  "dur": 0.11
+ },
+ {
+  "file": "last-corner-1.mp3",
+  "slug": "last-corner",
+  "take": 1,
+  "said": "last corner",
+  "start": 95.88,
+  "dur": 0.56
+ },
+ {
+  "file": "flat-to-finish-1.mp3",
+  "slug": "flat-to-finish",
+  "take": 1,
+  "said": "flat to finish",
+  "start": 96.82,
+  "dur": 1.45
+ },
+ {
+  "file": "flat-to-finish-2.mp3",
+  "slug": "flat-to-finish",
+  "take": 2,
+  "said": "flat to finish",
+  "start": 98.47,
+  "dur": 0.63
+ },
+ {
+  "file": "stage-end-1.mp3",
+  "slug": "stage-end",
+  "take": 1,
+  "said": "stage end",
+  "start": 99.64,
+  "dur": 0.6
+ },
+ {
+  "file": "thats-a-good-one-1.mp3",
+  "slug": "thats-a-good-one",
+  "take": 1,
+  "said": "thats a good one",
+  "start": 100.48,
+  "dur": 0.46
+ },
+ {
+  "file": "personal-best-1.mp3",
+  "slug": "personal-best",
+  "take": 1,
+  "said": "personal best",
+  "start": 101.2,
+  "dur": 0.61
+ },
+ {
+  "file": "weve-lost-time-1.mp3",
+  "slug": "weve-lost-time",
+  "take": 1,
+  "said": "weve lost time there",
+  "start": 102.22,
+  "dur": 0.7
+ },
+ {
+  "file": "p-drop-zone-1.mp3",
+  "slug": "p-drop-zone",
+  "take": 1,
+  "said": "the drop zone",
+  "start": 107.49,
+  "dur": 0.64
+ },
+ {
+  "file": "p-pines-1.mp3",
+  "slug": "p-pines",
+  "take": 1,
+  "said": "the pines",
+  "start": 108.51,
+  "dur": 0.57
+ },
+ {
+  "file": "p-old-road-1.mp3",
+  "slug": "p-old-road",
+  "take": 1,
+  "said": "the old road",
+  "start": 109.35,
+  "dur": 0.49
+ },
+ {
+  "file": "p-village-1.mp3",
+  "slug": "p-village",
+  "take": 1,
+  "said": "the village",
+  "start": 110.16,
+  "dur": 0.5
+ },
+ {
+  "file": "p-gorge-1.mp3",
+  "slug": "p-gorge",
+  "take": 1,
+  "said": "the gorge",
+  "start": 110.99,
+  "dur": 0.32
+ },
+ {
+  "file": "p-climb-1.mp3",
+  "slug": "p-climb",
+  "take": 1,
+  "said": "the climb",
+  "start": 111.91,
+  "dur": 0.18
+ },
+ {
+  "file": "p-plateau-1.mp3",
+  "slug": "p-plateau",
+  "take": 1,
+  "said": "the plateau",
+  "start": 112.53,
+  "dur": 0.51
+ },
+ {
+  "file": "p-descent-1.mp3",
+  "slug": "p-descent",
+  "take": 1,
+  "said": "the descent",
+  "start": 113.32,
+  "dur": 0.35
+ },
+ {
+  "file": "out-of-the-trees-1.mp3",
+  "slug": "out-of-the-trees",
+  "take": 1,
+  "said": "out of the trees",
+  "start": 114.2,
+  "dur": 0.47
+ },
+ {
+  "file": "out-of-the-village-1.mp3",
+  "slug": "out-of-the-village",
+  "take": 1,
+  "said": "out of the village",
+  "start": 115.01,
+  "dur": 0.56
+ },
+ {
+  "file": "out-of-the-dark-1.mp3",
+  "slug": "out-of-the-dark",
+  "take": 1,
+  "said": "out of the dark",
+  "start": 115.78,
+  "dur": 0.43
+ },
+ {
+  "file": "over-the-top-1.mp3",
+  "slug": "over-the-top",
+  "take": 1,
+  "said": "over the top",
+  "start": 117.93,
+  "dur": 0.15
+ },
+ {
+  "file": "hit-small-2-1.mp3",
+  "slug": "hit-small-2",
+  "take": 1,
+  "said": "thats a dent",
+  "start": 119.09,
+  "dur": 0.41
+ },
+ {
+  "file": "hit-medium-1.mp3",
+  "slug": "hit-medium",
+  "take": 1,
+  "said": "oh no no no no no no no",
+  "start": 120.04,
+  "dur": 2.56
+ },
+ {
+  "file": "puncture-1.mp3",
+  "slug": "puncture",
+  "take": 1,
+  "said": "weve got a puncture",
+  "start": 122.68,
+  "dur": 0.3
+ },
+ {
+  "file": "warning-light-1.mp3",
+  "slug": "warning-light",
+  "take": 1,
+  "said": "warning light",
+  "start": 123.3,
+  "dur": 0.29
+ },
+ {
+  "file": "pull-over-1.mp3",
+  "slug": "pull-over",
+  "take": 1,
+  "said": "pull over pull over pull over",
+  "start": 123.81,
+  "dur": 1.29
+ },
+ {
+  "file": "tyre-hurry-1.mp3",
+  "slug": "tyre-hurry",
+  "take": 1,
+  "said": "faster faster",
+  "start": 125.79,
+  "dur": 0.71
+ },
+ {
+  "file": "crash-big-1.mp3",
+  "slug": "crash-big",
+  "take": 1,
+  "said": "ah",
+  "start": 126.85,
+  "dur": 0.69
+ },
+ {
+  "file": "crash-huge-1.mp3",
+  "slug": "crash-huge",
+  "take": 1,
+  "said": "no no no no no",
+  "start": 129.12,
+  "dur": 3.14
+ },
+ {
+  "file": "rolled-1.mp3",
+  "slug": "rolled",
+  "take": 1,
+  "said": "were upside down again",
+  "start": 133.08,
+  "dur": 0.79
+ },
+ {
+  "file": "you-okay-1.mp3",
+  "slug": "you-okay",
+  "take": 1,
+  "said": "you okay",
+  "start": 134.64,
+  "dur": 0.51
+ },
+ {
+  "file": "miracle-landing-1.mp3",
+  "slug": "miracle-landing",
+  "take": 1,
+  "said": "how",
+  "start": 134.64,
+  "dur": 0.51
+ },
+ {
+  "file": "near-miss-1.mp3",
+  "slug": "near-miss",
+  "take": 1,
+  "said": "whoa whoa",
+  "start": 136.35,
+  "dur": 0.44
+ },
+ {
+  "file": "still-with-me-1.mp3",
+  "slug": "still-with-me",
+  "take": 1,
+  "said": "still with me",
+  "start": 137.35,
+  "dur": 0.22
+ },
+ {
+  "file": "youre-in-a-field-1.mp3",
+  "slug": "youre-in-a-field",
+  "take": 1,
+  "said": "youre in the field",
+  "start": 139.24,
+  "dur": 0.56
+ },
+ {
+  "file": "dont-do-that-again-1.mp3",
+  "slug": "dont-do-that-again",
+  "take": 1,
+  "said": "dont do that again",
+  "start": 140.1,
+  "dur": 1.22
+ },
+ {
+  "file": "nice-1.mp3",
+  "slug": "nice",
+  "take": 1,
+  "said": "nice",
+  "start": 141.79,
+  "dur": 0.96
+ },
+ {
+  "file": "big-air-whoop-1.mp3",
+  "slug": "big-air-whoop",
+  "take": 1,
+  "said": "woo",
+  "start": 142.35,
+  "dur": 0.4
+ }
+]

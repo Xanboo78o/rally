@@ -676,6 +676,37 @@ export function buildStageMesh(THREE, stage) {
     group.add(chunk);
   }
 
+  // ---- start area ----------------------------------------------------------
+  // The finish is a bare beam, because you're through it at 90mph and gone. The start is
+  // somewhere you SIT — through a whole countdown, with nothing to do but look — so it
+  // gets the things you'd end up staring at: a gantry you're parked under, a line across
+  // the road at your wheels, and boards either side to square the car up against.
+  {
+    const s0 = S[0];
+    const rx = Math.cos(s0.head), rz = -Math.sin(s0.head);   // across the road
+    const fx = Math.sin(s0.head), fz = Math.cos(s0.head);    // down it
+    const red = new THREE.MeshLambertMaterial({ color: 0xd8433a });
+    const pale = new THREE.MeshLambertMaterial({ color: 0xe8e2d4 });
+    const dark = new THREE.MeshLambertMaterial({ color: 0x2b2f36 });
+    const at = (mesh, out, along, up) => {
+      mesh.position.set(s0.x + rx * out + fx * along, s0.y + up, s0.z + rz * out + fz * along);
+      mesh.rotation.y = -s0.head;
+      group.add(mesh);
+    };
+    const span = s0.w * 2.4;
+    at(new THREE.Mesh(new THREE.BoxGeometry(span, 0.62, 0.5), red), 0, 11, 4.30);
+    for (const side of [-1, 1]) {
+      at(new THREE.Mesh(new THREE.BoxGeometry(0.34, 4.4, 0.34), dark), side * span * 0.5, 11, 2.1);
+      // Marker boards. Two a side, staggered, so from the driver's seat they give you
+      // something to line the car up against before the count even starts.
+      for (let k = 0; k < 2; k++)
+        at(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.9, 0.62), k ? red : pale),
+           side * (s0.w + 0.7), 1.5 + k * 3.4, 0.45);
+    }
+    // The line itself, sunk a hair into the road so it can't z-fight with it.
+    at(new THREE.Mesh(new THREE.BoxGeometry(s0.w * 2, 0.04, 0.34), pale), 0, 3.2, 0.02);
+  }
+
   // ---- finish gate ---------------------------------------------------------
   const last = S[S.length - 1];
   const gate = new THREE.Mesh(

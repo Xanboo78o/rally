@@ -303,3 +303,24 @@ html, body {
   background: #000; opacity: 0; transition: opacity .75s ease-in;
 }
 #fade.on { opacity: 1; }
+
+/* The count-in. One number in the middle of the windscreen — the element already
+   existed for the pause count and had no styling at all, so this lights that up too.
+   It punches in and settles rather than fading, because a countdown is a series of
+   events, not a slow reveal. */
+#resumeCount {
+  position: fixed; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  font: 900 22vmin/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .02em; color: #f2efe9;
+  text-shadow: 0 6px 40px rgba(0,0,0,.65);
+  pointer-events: none; z-index: 40;
+  animation: countPop .55s cubic-bezier(.2,.9,.25,1) both;
+}
+#resumeCount.on { display: flex; }
+#resumeCount.go { color: #d8433a; font-size: 26vmin; }
+@keyframes countPop {
+  from { transform: scale(1.55); opacity: 0; }
+  28%  { transform: scale(1);    opacity: 1; }
+  to   { transform: scale(1);    opacity: .92; }
+}
