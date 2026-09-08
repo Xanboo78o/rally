@@ -12,6 +12,7 @@ const VERBOSE = process.argv.includes('--v');
 const FIXED = 1 / 120;
 
 const angDiff = a => Math.atan2(Math.sin(a), Math.cos(a));
+const fmt = t => Math.floor(t / 60) + ':' + (t % 60 < 10 ? '0' : '') + (t % 60).toFixed(2);
 
 function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
   const stage = new Stage();
@@ -25,9 +26,10 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
   const flights = [];
   let air = null;
   let maxOff = 0, offTime = 0;
+  const offSeg = {};
   const segSpeed = SEGMENTS.map(() => ({ sum: 0, n: 0 }));
 
-  for (let i = 0; i < 120 * 240; i++) {
+  for (let i = 0; i < 120 * 600; i++) {
     const g = stage.sample(car.x, car.z);
 
     // Aim at a point down the road. The lookahead has to scale with speed — a fixed
@@ -60,27 +62,33 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
       air = null;
     }
 
-    if (g.off > 0) { offTime += FIXED; maxOff = Math.max(maxOff, g.off); }
+    if (g.off > 0) {
+      offTime += FIXED; maxOff = Math.max(maxOff, g.off);
+      const e = offSeg[g.seg] || (offSeg[g.seg] = { t: 0, max: 0 });
+      e.t += FIXED; e.max = Math.max(e.max, g.off);
+    }
     const ss = segSpeed[g.seg];
     if (ss) { ss.sum += car.speed; ss.n++; }
 
     if (car.rolled) {
-      return { ok: false, why: 'ROLLED at ' + Math.round(g.progress) + 'm', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length };
+      return { ok: false, why: 'ROLLED at ' + Math.round(g.progress) + 'm', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
     }
     if (g.progress >= stage.length - 6) {
-      return { ok: true, t, flights, offTime, maxOff, segSpeed, stage, len: stage.length };
+      return { ok: true, t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
     }
     if (car.speed < 0.4 && t > 6) {
-      return { ok: false, why: 'stalled at ' + Math.round(g.progress) + 'm', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length };
+      return { ok: false, why: 'stalled at ' + Math.round(g.progress) + 'm', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
     }
   }
-  return { ok: false, why: 'never finished', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length };
+  return { ok: false, why: 'never finished', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
 }
 
 const r = run();
+const stage = r.stage;
+
 console.log('stage length   ', r.len.toFixed(0), 'm');
 console.log('finished       ', r.ok ? 'YES' : 'NO  — ' + r.why);
-console.log('stage time     ', r.t.toFixed(2), 's');
+console.log('stage time     ', fmt(r.t));
 console.log('avg speed      ', (r.len / r.t * 2.237).toFixed(1), 'mph');
 console.log('time off road  ', r.offTime.toFixed(2), 's   (max', r.maxOff.toFixed(1), 'm out)');
 console.log('flights        ', r.flights.length);
@@ -88,17 +96,79 @@ for (const f of r.flights) {
   console.log('   ' + f.dur.toFixed(2) + 's airborne at ' + f.at + 'm (takeoff t=' + f.tOff.toFixed(2) + 's), landing hit ' + f.hit.toFixed(2));
 }
 
+// ---- per-section: is any part of the stage a slog, and does it vary? -----------
+// A five-minute stage lives or dies on whether the pace keeps changing. Same speed
+// for five minutes is the failure mode, and it doesn't show up in the total.
+console.log('\nsections:');
+const secTime = new Map();
+for (const s of stage.sections) secTime.set(s.key, { d: s.end - s.start, t: 0, sum: 0, n: 0 });
+SEGMENTS.forEach((seg, i) => {
+  const q = r.segSpeed[i], e = secTime.get(seg.sec);
+  if (q && e) { e.sum += q.sum; e.n += q.n; e.t += q.n * FIXED; }
+});
+for (const [k, e] of secTime) {
+  const mph = e.n ? (e.sum / e.n * 2.237) : 0;
+  console.log('  ' + k.padEnd(9) + String(Math.round(e.d)).padStart(5) + 'm  '
+    + fmt(e.t).padStart(7) + '   ' + mph.toFixed(1).padStart(5) + ' mph');
+}
+
 if (VERBOSE) {
   console.log('\nper-segment average speed (mph):');
   SEGMENTS.forEach((s, i) => {
     const q = r.segSpeed[i];
     const mph = q.n ? (q.sum / q.n * 2.237).toFixed(1) : '--';
-    console.log('  ' + String(i).padStart(2) + '  ' + String(mph).padStart(6) + '   ' + s.note);
+    console.log('  ' + String(i).padStart(2) + '  ' + String(mph).padStart(6) + '   ' + s.sec.padEnd(8) + ' ' + s.note);
   });
 }
 
+// ---- does the road cross itself? ----------------------------------------------
+// Hand-authoring 8km by walking headings can quietly fold the stage back over its own
+// path, and the symptom is horrible: stage.nearest() snaps to the wrong lap of the
+// road, so the car teleports its progress and the ground height jumps. Cheap to check,
+// impossible to spot by eye.
+function crossings(minGapM = 260, tooCloseM = 45, sameHeightM = 12) {
+  const S = stage.samples;
+  const step = Math.round(minGapM / 2);
+  const folds = [], stacks = [];
+  for (let i = 0; i < S.length; i += 2) {
+    for (let j = i + step; j < S.length; j += 2) {
+      const h = Math.hypot(S[i].x - S[j].x, S[i].z - S[j].z);
+      if (h >= tooCloseM) continue;
+      const v = Math.abs(S[i].y - S[j].y);
+      (v < sameHeightM ? folds : stacks).push({ a: S[i].dist, b: S[j].dist, h, v });
+    }
+  }
+  folds.sort((p, q) => p.h - q.h);
+  stacks.sort((p, q) => p.h - q.h);
+  return { folds, stacks };
+}
+const cross = crossings();
+console.log('\nself-intersection');
+if (!cross.folds.length) console.log('  no folds — nothing runs back over itself at the same height');
+else {
+  console.log('  ' + cross.folds.length + ' FOLDS (road over road, same height). Worst:');
+  for (const c of cross.folds.slice(0, 6)) {
+    console.log('    ' + Math.round(c.a) + 'm <-> ' + Math.round(c.b) + 'm   ' + c.h.toFixed(1) + 'm apart, only ' + c.v.toFixed(1) + 'm of height between them');
+  }
+}
+// Stacked switchbacks are the POINT of a mountain climb, so they're reported, not failed.
+if (cross.stacks.length) {
+  const s0 = cross.stacks[0];
+  console.log('  ' + cross.stacks.length + ' vertical stacks (fine — that\'s a switchback). Closest: '
+    + Math.round(s0.a) + 'm passes ' + s0.v.toFixed(0) + 'm under ' + Math.round(s0.b) + 'm');
+}
+
 const big = r.flights.filter(f => f.dur > 0.5);
+const spread = [...secTime.values()].map(e => e.n ? e.sum / e.n * 2.237 : 0);
+const varied = Math.max(...spread) - Math.min(...spread);
+
 console.log('\nVERDICT');
-console.log('  drivable      ', r.ok ? 'pass' : 'FAIL');
-console.log('  has a real jump', big.length ? 'pass (' + big[0].dur.toFixed(2) + 's)' : 'FAIL — nothing over 0.5s');
-console.log('  stays on road ', r.offTime < 4 ? 'pass' : 'loose (' + r.offTime.toFixed(1) + 's off)');
+console.log('  drivable        ', r.ok ? 'pass' : 'FAIL');
+console.log('  ~5 minutes      ', r.t > 240 && r.t < 400 ? 'pass (' + fmt(r.t) + ')' : 'off target (' + fmt(r.t) + ')');
+console.log('  has a real jump ', big.length ? 'pass (' + big[0].dur.toFixed(2) + 's)' : 'FAIL — nothing over 0.5s');
+// As a FRACTION of stage time, not an absolute — the old 4s budget was written for a
+// 37-second stage and means nothing on one seven times longer.
+const offPct = r.offTime / r.t * 100;
+console.log('  stays on road   ', offPct < 10 ? 'pass (' + offPct.toFixed(1) + '% of the run)' : 'loose (' + offPct.toFixed(1) + '%)');
+console.log('  pace varies     ', varied > 25 ? 'pass (' + varied.toFixed(0) + ' mph spread)' : 'FLAT (' + varied.toFixed(0) + ' mph spread)');
+console.log('  road never folds', cross.folds.length ? 'FAIL (' + cross.folds.length + ' folds)' : 'pass');

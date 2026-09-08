@@ -14,6 +14,8 @@ import { buildCockpit, VISUAL_LOCK } from './cockpit.js';
 import { Glass } from './glass.js';
 import { Look } from './look.js';
 import { Sound } from './audio.js';
+import { atmosAt, ATMOS, ATMOS_KEYS } from './atmos.js';
+import { Post } from './post.js';
 
 const FIXED = 1 / 120;
 // Speed fraction at which each gear runs out. rpm sawtooths inside each one, so the
@@ -49,6 +51,12 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 $('app').appendChild(renderer.domElement);
 
+// ?post=0 turns the whole filter pass off — one flag to check whether something odd on
+// a device is the grade or the scene underneath it.
+const QS = new URLSearchParams(location.search);
+const post = new Post(THREE, renderer);
+post.enabled = QS.get('post') !== '0';
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9fb4c4);
 scene.fog = new THREE.Fog(0x9fb4c4, 120, 620);
@@ -56,13 +64,43 @@ scene.fog = new THREE.Fog(0x9fb4c4, 120, 620);
 const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.12, 2000);
 scene.add(camera);
 
-scene.add(new THREE.HemisphereLight(0xcfe0ee, 0x40492f, 1.05));
+const hemi = new THREE.HemisphereLight(0xcfe0ee, 0x40492f, 1.05);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2dd, 1.15);
 sun.position.set(-90, 140, 60);
 scene.add(sun);
 
 const stage = new Stage();
 scene.add(buildStageMesh(THREE, stage));
+
+// ---------------------------------------------------------------------------
+// WHERE YOU ARE. One blended atmos entry per frame drives the sky, the fog, both
+// lights, the depth of field the camera can see to, the whole colour grade and the
+// size of the room you can hear. Keys 1-8 pin one so a look can be judged on its own
+// instead of only in the two hundred metres of stage where it happens to occur.
+// ---------------------------------------------------------------------------
+let atmosPin = QS.get('atmos') && ATMOS[QS.get('atmos')] ? QS.get('atmos') : null;
+let atmosNow = ATMOS.dawn;
+let shownPlace = '';
+
+function applyAtmos(A) {
+  atmosNow = A;
+  scene.background.setHex(A.sky);
+  scene.fog.color.setHex(A.sky);
+  scene.fog.near = A.fog[0];
+  scene.fog.far = A.fog[1];
+  // The far plane follows the fog. Nothing past it is visible anyway, so this culls
+  // most of the stage for free AND — the reason it matters — it buys back a lot of
+  // depth-buffer precision, which is what the distance blur reads.
+  camera.far = A.fog[1] * 1.25;
+  sun.color.setHex(A.sun.color);
+  sun.intensity = A.sun.int;
+  sun.position.set(A.sun.pos[0], A.sun.pos[1], A.sun.pos[2]);
+  hemi.color.setHex(A.hemi.sky);
+  hemi.groundColor.setHex(A.hemi.ground);
+  hemi.intensity = A.hemi.int;
+  post.apply(A.look);
+}
 
 const { group: cockpit, mat: hoodMat } = buildCockpit(THREE);
 camera.add(cockpit);
@@ -133,7 +171,7 @@ const controls = new Controls($('app'), wheel, () => {
 
 // TEST HOOK. ?auto drives the stage on its own so the game can be screenshotted
 // headlessly — I can't hold the phone, so this is how I check it renders at all.
-const AUTO = new URLSearchParams(location.search).has('auto');
+const AUTO = QS.has('auto');
 const angDiff = a => Math.atan2(Math.sin(a), Math.cos(a));
 function autopilot(g) {
   // Lookahead scales with speed and it brakes for what's coming — same logic as
@@ -172,6 +210,9 @@ function resetRun() {
   hoodMat.color.setRGB(1, 1, 1);
   timer = 0; timing = false; finished = false;
   noteSeg = -1; noteUntil = 0;
+  // Seed the place so the line you get on the start line is the co-driver's first call,
+  // not the name of somewhere you're already standing. Only ARRIVING somewhere is news.
+  shownPlace = atmosAt(stage.sections, 0).name;
   $('finish').classList.remove('show');
   say(SEGMENTS[0].note);
 }
@@ -267,6 +308,13 @@ const eye = new THREE.Vector3();
 
 function render(dtReal) {
   const ground = stage.sample(car.x, car.z);
+
+  const A = atmosPin ? ATMOS[atmosPin] : atmosAt(stage.sections, ground.progress);
+  applyAtmos(A);
+  // Arriving somewhere is worth naming, and the note slot already exists — so this
+  // costs no new chrome, which is the rule.
+  if (A.name !== shownPlace) { shownPlace = A.name; say(A.name); }
+
   camera.fov += (air.fov - camera.fov) * Math.min(1, 14 * dtReal);
   camera.updateProjectionMatrix();
 
@@ -380,8 +428,16 @@ function render(dtReal) {
     slip01: Math.min(1, Math.abs(car.slip) / 0.45),
     duck: air.duck,
     airborne: car.airborne,
+    // Which side the ground noise is on. `lateral` is positive toward the driver's
+    // LEFT (the camera is rotated by PI + yaw, so world +X ends up on the left), and a
+    // StereoPanner wants -1 for left — hence the negation. Ramps in over the last
+    // couple of metres of road so it doesn't snap as you cross the edge.
+    pan: -Math.max(-1, Math.min(1, ground.lateral / Math.max(1, ground.off > 0 ? 2.2 : 6))),
+    slipDir: Math.max(-1, Math.min(1, car.slip / 0.45)),
+    atmos: A.sound,
   }, dtReal);
-  renderer.render(scene, camera);
+
+  post.render(scene, camera, dtReal);
 }
 
 // ---------------------------------------------------------------------------
@@ -424,6 +480,7 @@ function fitCanvas() {
   renderer.setSize(fitW, fitH, false);
   renderer.domElement.style.width = fitW + 'px';
   renderer.domElement.style.height = fitH + 'px';
+  post.setSize(fitW, fitH, renderer.getPixelRatio());
   glass.resize();
 }
 addEventListener('resize', fitCanvas);
@@ -438,6 +495,20 @@ $('start').addEventListener('click', () => {
   last = performance.now();
 });
 
+// 1-8 pin a filter, 0 hands it back to the stage, P toggles the pass entirely. Desk
+// only — it's for judging the looks side by side, not a feature.
+addEventListener('keydown', e => {
+  const n = parseInt(e.key, 10);
+  if (e.key === '0') { atmosPin = null; say('FILTER — AUTO'); }
+  else if (n >= 1 && n <= ATMOS_KEYS.length) {
+    atmosPin = ATMOS_KEYS[n - 1];
+    say('FILTER — ' + ATMOS[atmosPin].name);
+  } else if (e.key === 'p' || e.key === 'P') {
+    post.enabled = !post.enabled;
+    say('POST ' + (post.enabled ? 'ON' : 'OFF'));
+  }
+});
+
 $('retry').addEventListener('click', e => { e.stopPropagation(); resetRun(); });
 $('resetBtn').addEventListener('click', e => { e.stopPropagation(); resetRun(); });
 
@@ -448,7 +519,7 @@ if (AUTO) {
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot
   // can be taken at an exact moment (mid-jump, say) rather than whenever the headless
   // browser happens to get round to it.
-  const at = parseFloat(new URLSearchParams(location.search).get('at') || '0');
+  const at = parseFloat(QS.get('at') || '0');
   for (let t = 0; t < at; t += FIXED) step(FIXED);
   running = true;
   last = performance.now();

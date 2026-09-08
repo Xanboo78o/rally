@@ -53,6 +53,19 @@
     <select id="surf"></select>
   </div>
   <div class="row">
+    <label>WHERE YOU ARE — the room, from js/atmos.js</label>
+    <select id="place"></select>
+    <p class="lead" id="placeInfo" style="margin:8px 0 0"></p>
+  </div>
+  <div class="row">
+    <label>GROUND SIDE — left ear .. right ear <b id="vp">0.00</b></label>
+    <input type="range" id="pan" min="-1" max="1" step="0.01" value="0">
+  </div>
+  <div class="row">
+    <label>SLIDE DIRECTION — which way the back stepped out <b id="vsd">0.00</b></label>
+    <input type="range" id="slipDir" min="-1" max="1" step="0.01" value="0">
+  </div>
+  <div class="row">
     <label>ONE-SHOTS — hammer them, they should never repeat</label>
     <div class="btns">
       <button id="thudS" class="alt">SMALL THUD</button>
@@ -63,17 +76,30 @@
   </div>
   <div class="note">
     Loops crossfade on surface change and never cut. One-shots pick at random from a
-    bank and detune &plusmn;100 cents, so repeated bumps don't machine-gun. The banks are
-    synthesised placeholders — real recordings drop straight in.
+    bank and detune &plusmn;100 cents, so repeated bumps don't machine-gun.
+    <br><br>
+    <b>Check with headphones on.</b> The ground should sit across the whole field and
+    move to whichever side GROUND SIDE is pushed — that's the cue that tells you which
+    wheel is off. THE GORGE should sound like a slot in rock and THE VILLAGE like walls
+    a metre away; if they sound the same, the room isn't working. Pull AIR DUCK to 0 and
+    everything outside should go muffled and distant, not merely quieter.
   </div>
 </div>
 
 <script type="module">
 import { Sound, SURFACES } from './js/audio.js';
+import { ATMOS, ATMOS_KEYS } from './js/atmos.js';
 const s = new Sound();
 const $ = id => document.getElementById(id);
 
 $('surf').innerHTML = Object.keys(SURFACES).map(k => `<option${k === 'gravel' ? ' selected' : ''}>${k}</option>`).join('');
+$('place').innerHTML = ATMOS_KEYS.map(k => `<option value="${k}">${ATMOS[k].name}</option>`).join('');
+function placeInfo() {
+  const a = ATMOS[$('place').value].sound;
+  $('placeInfo').textContent = `wet ${a.space} · size ${a.size}s · decay ${a.decay} · room tone ${a.tone}Hz · bodywork ${a.dark}Hz · wind ${a.air}x`;
+}
+$('place').addEventListener('change', placeInfo);
+placeInfo();
 
 let last = performance.now();
 function loop(t) {
@@ -83,10 +109,14 @@ function loop(t) {
   $('vs').textContent = (+$('spd').value).toFixed(2);
   $('vl').textContent = (+$('slip').value).toFixed(2);
   $('vd').textContent = (+$('duck').value).toFixed(2);
+  $('vp').textContent = (+$('pan').value).toFixed(2);
+  $('vsd').textContent = (+$('slipDir').value).toFixed(2);
   s.update({
     rpm01: +$('rpm').value, speed01: +$('spd').value,
     slip01: +$('slip').value, duck: +$('duck').value,
     surface: $('surf').value,
+    pan: +$('pan').value, slipDir: +$('slipDir').value,
+    atmos: ATMOS[$('place').value].sound,
   }, dt);
 }
 
@@ -110,9 +140,15 @@ $('drive').addEventListener('click', () => {
     $('spd').value = Math.max(0, sp);
     $('rpm').value = 0.26 + 0.74 * ((sp * 3) % 1);
     $('slip').value = Math.max(0, Math.sin(t * 0.7)) * 0.8;
-    $('surf').value = (t % 9) > 7 ? 'grass' : 'gravel';
+    const off = (t % 9) > 7;
+    $('surf').value = off ? 'grass' : 'gravel';
+    // Drop a wheel off to one side, so the ground audibly moves to that ear.
+    $('pan').value = off ? (Math.sin(t * 0.31) > 0 ? 0.85 : -0.85) : 0;
+    $('slipDir').value = Math.sin(t * 0.7) * 0.9;
+    $('place').value = ATMOS_KEYS[Math.floor(t / 3) % ATMOS_KEYS.length];
+    placeInfo();
     if (Math.random() < 0.14) s.thud(Math.random());
-    if (t > 22) { clearInterval(id); $('spd').value = 0; $('slip').value = 0; }
+    if (t > 26) { clearInterval(id); $('spd').value = 0; $('slip').value = 0; $('pan').value = 0; }
   }, 100);
 });
 </script>
