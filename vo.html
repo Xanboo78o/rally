@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RALLY — voice bench</title>
+<style>
+  body { margin:0; padding:18px; background:#15181c; color:#f2efe9;
+         font:500 14px/1.4 ui-sans-serif,system-ui,sans-serif; }
+  h1 { font:900 20px/1 ui-sans-serif,sans-serif; letter-spacing:.14em; margin:0 0 4px; }
+  p.lead { color:rgba(242,239,233,.5); font-size:12px; margin:0 0 16px; }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+  button { background:#2b2f36; color:#f2efe9; border:0; border-radius:8px; padding:11px 14px;
+           font:800 12px/1 ui-sans-serif,sans-serif; letter-spacing:.09em; cursor:pointer; }
+  button.on { background:#d8433a; color:#fff; }
+  button.big { background:#d8433a; color:#fff; padding:16px 20px; font-size:14px; }
+  #go { width:100%; padding:18px; font-size:15px; }
+  .card { background:#1d2126; border-radius:12px; padding:20px; margin:14px 0; }
+  .num { font:700 11px/1 ui-monospace,Menlo,monospace; letter-spacing:.14em;
+         color:rgba(242,239,233,.45); }
+  .grp { font:800 10px/1 ui-monospace,Menlo,monospace; letter-spacing:.16em; color:#d8433a; margin-top:10px; }
+  #label { width:100%; box-sizing:border-box; margin-top:10px; background:#15181c; color:#f2efe9;
+           border:1px solid rgba(242,239,233,.18); border-radius:8px; padding:14px;
+           font:800 20px/1.2 ui-monospace,Menlo,monospace; letter-spacing:.04em; }
+  #label.junk { color:#6b7078; text-decoration:line-through; }
+  .bar { display:flex; gap:2px; margin:16px 0 6px; flex-wrap:wrap; }
+  .bar i { width:9px; height:16px; border-radius:2px; background:#2b2f36; }
+  .bar i.done { background:#4c9a5e; }
+  .bar i.junk { background:#5a2f2c; }
+  .bar i.now  { background:#f2efe9; }
+  .keys { color:rgba(242,239,233,.45); font-size:12px; line-height:1.7; margin-top:14px; }
+  .keys b { color:#f2efe9; font-family:ui-monospace,Menlo,monospace; }
+  .note { margin-top:20px; padding:12px; border-radius:8px; background:#1d2126;
+          color:rgba(242,239,233,.6); font-size:12px; }
+</style>
+</head>
+<body>
+<h1>VOICE BENCH</h1>
+<p class="lead">125 clips cut out of your recording. I can't hear any of them — play each one,
+fix the label if it's wrong, and hit enter. Also: pick which radio sounds right.</p>
+
+<button id="go" class="big">START AUDIO</button>
+
+<div id="main" hidden>
+  <div class="btns" id="presets">
+    <button data-p="dry">0 · DRY</button>
+    <button data-p="helmet" class="on">1 · HELMET</button>
+    <button data-p="cheap">2 · CHEAP</button>
+    <button data-p="broken">3 · BROKEN</button>
+  </div>
+
+  <div class="card">
+    <div class="num"><span id="pos">1</span> / 125 &nbsp;·&nbsp; <span id="file">001.mp3</span> &nbsp;·&nbsp; <span id="dur">—</span></div>
+    <input id="label" spellcheck="false">
+    <div class="grp" id="grp">CORNERS</div>
+    <div class="btns">
+      <button id="play" class="big">▶ PLAY (space)</button>
+      <button id="ok">✓ RIGHT (enter)</button>
+      <button id="junk">✗ JUNK (x)</button>
+      <button id="join">↩ JOINS PREVIOUS (j)</button>
+    </div>
+  </div>
+
+  <div class="bar" id="bar"></div>
+  <div class="keys">
+    <b>space</b> replay &nbsp; <b>enter</b> accept + next &nbsp; <b>←/→</b> move &nbsp;
+    <b>x</b> junk &nbsp; <b>j</b> this clip is the tail of the one before &nbsp; <b>0-3</b> radio
+  </div>
+
+  <div class="btns">
+    <button id="save" class="big">DOWNLOAD labels.json</button>
+    <button id="reset">start over</button>
+  </div>
+  <div class="note">Progress saves itself as you go, so you can stop and come back. When
+  you're done, download the json and tell me which radio you picked.</div>
+</div>
+
+<script type="module">
+import { makeRadio } from './js/radio.js';
+
+const GROUPS = [
+  ['CORNERS', ['left-1','left-2','left-3','left-4','left-5','left-6',
+    'right-1','right-2','right-3','right-4','right-5','right-6','hairpin-left','hairpin-right']],
+  ['MODIFIERS', ['long','short','tightens','opens','tight','very-tight','square','narrow','narrows',
+    'flat','blind','downhill','uphill','climbing','over-crest','dont-cut','keep-left','keep-right','care']],
+  ['DISTANCE', ['d-30','d-40','d-50','d-60','d-70','d-80','d-90','d-100','d-120','d-150','d-200']],
+  ['HAZARDS', ['caution','jump','big-jump','crest','landing','land-straight','bridge','dont-touch-the-edge',
+    'rocks-inside','tree-inside','walls-both-sides','wall-on-the-left','wall-on-the-right','over-roots',
+    'over-water','road-falls-away','nothing-outside','dont-drop-a-wheel','under-the-arch','narrowest-point',
+    'bumpy','dust','spikes','someones-been-here']],
+  ['CONNECTORS', ['and','into','then','then-immediately']],
+  ['INSTRUCTIONS', ['flat-out','start-turning-early','hold-the-handbrake','handbrake','handbrake-again',
+    'flick-down','flick-down-to-rotate','dont-overturn','dont-lift','keep-the-rhythm','slow-it-down']],
+  ['THE RUN', ['count-3','count-2','count-1','count-go','countdown-full','stage-start','last-corner',
+    'flat-to-finish','stage-end','thats-a-good-one','personal-best','weve-lost-time']],
+  ['PLACES', ['p-drop-zone','p-pines','p-old-road','p-village','p-gorge','p-climb','p-plateau','p-descent',
+    'out-of-the-trees','out-of-the-village','out-of-the-dark','over-the-top']],
+  ['REACTIONS', ['hit-small','hit-small-2','hit-medium','puncture','warning-light','pull-over','tyre-hurry',
+    'crash-big','crash-huge','rolled','you-okay','miracle-landing','near-miss','big-air-whoop',
+    'still-with-me','youre-in-a-field','dont-do-that-again','nice']],
+];
+const GUESS = [], GRP = [];
+for (const [g, list] of GROUPS) for (const s of list) { GUESS.push(s); GRP.push(g); }
+
+const N = 125;
+const KEY = 'rally.vo.labels';
+let state = JSON.parse(localStorage.getItem(KEY) || 'null')
+         || GUESS.map((s, i) => ({ label: s || '', done: false, junk: false, join: false }));
+if (state.length !== N) state = GUESS.map(s => ({ label: s || '', done:false, junk:false, join:false }));
+let cur = state.findIndex(s => !s.done); if (cur < 0) cur = 0;
+
+const $ = id => document.getElementById(id);
+let ctx, radio, dryGain, preset = 'helmet';
+const bufs = new Map();
+
+$('go').onclick = async () => {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  await ctx.resume();
+  radio = makeRadio(ctx, 'helmet');
+  radio.output.connect(ctx.destination);
+  dryGain = ctx.createGain(); dryGain.gain.value = 0; dryGain.connect(ctx.destination);
+  $('go').hidden = true; $('main').hidden = false;
+  draw(); play();
+};
+
+async function bufFor(i) {
+  if (bufs.has(i)) return bufs.get(i);
+  const r = await fetch(`./vo/raw/${String(i + 1).padStart(3, '0')}.mp3`);
+  const b = await ctx.decodeAudioData(await r.arrayBuffer());
+  bufs.set(i, b);
+  return b;
+}
+
+async function play() {
+  const b = await bufFor(cur);
+  $('dur').textContent = b.duration.toFixed(2) + 's';
+  const src = ctx.createBufferSource();
+  src.buffer = b;
+  src.connect(preset === 'dry' ? dryGain : radio.input);
+  src.start();
+  if (cur + 1 < N) bufFor(cur + 1);     // keep the next one warm so enter is instant
+}
+
+function setPreset(p) {
+  preset = p;
+  if (p !== 'dry') radio.set(p);
+  dryGain.gain.value = p === 'dry' ? 1 : 0;
+  radio.gain.value = p === 'dry' ? 0 : 1;
+  for (const b of $('presets').children) b.classList.toggle('on', b.dataset.p === p);
+}
+
+function draw() {
+  const s = state[cur];
+  $('pos').textContent = cur + 1;
+  $('file').textContent = String(cur + 1).padStart(3, '0') + '.mp3';
+  $('label').value = s.label;
+  $('label').classList.toggle('junk', s.junk);
+  $('grp').textContent = (GRP[cur] || '') + (s.join ? '  ·  JOINS PREVIOUS' : '');
+  const bar = $('bar'); bar.innerHTML = '';
+  for (let i = 0; i < N; i++) {
+    const e = document.createElement('i');
+    if (i === cur) e.className = 'now';
+    else if (state[i].junk) e.className = 'junk';
+    else if (state[i].done) e.className = 'done';
+    bar.appendChild(e);
+  }
+}
+
+function commit() { state[cur].label = $('label').value.trim(); localStorage.setItem(KEY, JSON.stringify(state)); }
+function go(d) { commit(); cur = Math.max(0, Math.min(N - 1, cur + d)); draw(); play(); }
+
+$('play').onclick = () => play();
+$('ok').onclick = () => { state[cur].done = true; state[cur].junk = false; go(1); };
+$('junk').onclick = () => { state[cur].junk = true; state[cur].done = true; go(1); };
+$('join').onclick = () => { state[cur].join = !state[cur].join; commit(); draw(); };
+$('reset').onclick = () => { if (confirm('throw away all labels?')) { localStorage.removeItem(KEY); location.reload(); } };
+$('save').onclick = () => {
+  commit();
+  const out = state.map((s, i) => ({ file: String(i + 1).padStart(3, '0') + '.mp3', ...s }));
+  const blob = new Blob([JSON.stringify({ preset, clips: out }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'labels.json'; a.click();
+};
+for (const b of $('presets').children) b.onclick = () => setPreset(b.dataset.p);
+
+// TEST HOOK, same idea as the game's ?auto: I can't click a button in a headless
+// browser, so ?probe starts the audio itself and writes what happened into the title,
+// which --dump-dom can read back.
+if (new URLSearchParams(location.search).has('probe')) {
+  const say = t => { document.title = t; };
+  window.onerror = (m, f, l) => say('ERROR ' + m + ' @' + l);
+  (async () => {
+    try {
+      await $('go').onclick();
+      const b = await bufFor(0);
+      say(`OK ctx=${ctx.state} clip0=${b.duration.toFixed(2)}s presets=${$('presets').children.length}`);
+    } catch (e) { say('THREW ' + e.message); }
+  })();
+}
+
+addEventListener('keydown', e => {
+  if (e.target === $('label') && !['Enter', 'Escape'].includes(e.key)) return;
+  if (e.key === ' ') { e.preventDefault(); play(); }
+  else if (e.key === 'Enter') { e.preventDefault(); $('label').blur(); state[cur].done = true; state[cur].junk = false; go(1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+  else if (e.key === 'x' || e.key === 'X') { $('junk').click(); }
+  else if (e.key === 'j' || e.key === 'J') { $('join').click(); }
+  else if ('0123'.includes(e.key)) setPreset(['dry', 'helmet', 'cheap', 'broken'][+e.key]);
+  else if (e.key === 'Escape') $('label').blur();
+});
+</script>
+</body>
+</html>
