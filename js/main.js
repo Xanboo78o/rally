@@ -11,6 +11,7 @@ import { Wheel, TUNE } from './wheel.js';
 import { Controls } from './controls.js';
 import { AirFx } from './air.js';
 import { buildCockpit, VISUAL_LOCK } from './cockpit.js';
+import { Glass } from './glass.js';
 import { Sound } from './audio.js';
 
 const FIXED = 1 / 120;
@@ -48,8 +49,12 @@ scene.add(sun);
 const stage = new Stage();
 scene.add(buildStageMesh(THREE, stage));
 
-const { group: cockpit, wheel: rimMesh } = buildCockpit(THREE);
+const { group: cockpit } = buildCockpit(THREE);
 camera.add(cockpit);
+
+// Interior is a DOM overlay now; these are the bits the sim drives.
+const rimEl = document.getElementById('wheelRot');
+const glass = new Glass(document.getElementById('glass'));
 
 // ---------------------------------------------------------------------------
 // state
@@ -75,11 +80,20 @@ const controls = new Controls($('app'), wheel, () => {
 const AUTO = new URLSearchParams(location.search).has('auto');
 const angDiff = a => Math.atan2(Math.sin(a), Math.cos(a));
 function autopilot(g) {
-  const a = stage.samples[Math.min(stage.samples.length - 1, g.index + 13)];
+  // Lookahead scales with speed and it brakes for what's coming — same logic as
+  // tools/simcheck.mjs. A fixed lookahead is only a fraction of a second at 100mph.
+  const aheadM = Math.max(18, Math.min(75, 14 + car.speed * 0.95));
+  const step = Math.round(aheadM / 2);
+  const a = stage.samples[Math.min(stage.samples.length - 1, g.index + step)];
   const err = angDiff(Math.atan2(a.x - car.x, a.z - car.z) - car.yaw);
   wheel.held = true;
   wheel.target = Math.max(-1, Math.min(1, -err * 2.1));
-  controls.handbrake = Math.abs(err) > 0.42 && car.speed > 16 ? 1 : 0;
+
+  const bi = Math.min(stage.samples.length - 1, g.index + step + 15);
+  const curve = Math.abs(angDiff(stage.samples[bi].head - stage.samples[g.index].head));
+  const arc = Math.max(6, (bi - g.index) * 2);
+  const needLat = curve > 1e-4 ? (car.speed * car.speed) * (curve / arc) : 0;
+  controls.handbrake = (needLat > 9.0 || Math.abs(err) > 0.42) && car.speed > 14 ? 1 : 0;
 }
 
 function flash(el) {
@@ -96,6 +110,7 @@ function resetRun() {
   car.airborne = false; car.airTime = 0; car.pitch = 0; car.roll = 0;
   car.rolled = false; car.rollSpin = 0; car.landingHit = 0;
   wheel.pos = 0; wheel.target = 0; wheel.release();
+  glass.clear();
   timer = 0; timing = false; finished = false;
   noteSeg = -1; noteUntil = 0;
   $('finish').classList.remove('show');
@@ -234,7 +249,10 @@ function render(dtReal) {
   camera.rotateZ(car.roll * 0.75 + rumbleRoll);
 
   // The rim visibly lags your thumb, and unwinds on its own when you let go.
-  rimMesh.rotation.z = -wheel.pos * VISUAL_LOCK;
+  rimEl.setAttribute('transform', 'rotate(' + (wheel.pos * VISUAL_LOCK * 57.2958).toFixed(2) + ')');
+
+  glass.update(dtReal, car.speedFactor, ground.onRoad);
+  glass.draw();
 
   sound.update(car.speedFactor, ground.onRoad, air.duck, dtReal);
   renderer.render(scene, camera);

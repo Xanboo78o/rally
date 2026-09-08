@@ -15,7 +15,7 @@ export const AIR = {
   scaleOut: 0.16,
 
   fovGround: 62,
-  fovAir: 92,
+  fovAir: 86,
   fovLand: 56,          // the snap-in on touchdown
   fovAirEase: 0.55,
   fovLandEase: 0.10,

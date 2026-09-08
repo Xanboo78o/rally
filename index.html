@@ -6,11 +6,36 @@
 <meta name="theme-color" content="#9fb4c4">
 <meta name="mobile-web-app-capable" content="yes">
 <title>RALLY — feel prototype</title>
-<link rel="stylesheet" href="style.css?v=1788878010">
+<link rel="stylesheet" href="style.css?v=1788878893">
 </head>
 <body>
 
 <div id="app"></div>
+
+<!-- windscreen: its own layer, so dust and (later) rain sit on the glass rather than
+     being baked into the 3D scene -->
+<canvas id="glass"></canvas>
+
+<!-- the interior is an OVERLAY. A real onboard camera is bolted to the car, so the dash
+     and wheel are perfectly static and only the world moves behind them. -->
+<div id="cockpit">
+  <div class="pillar l"></div>
+  <div class="pillar r"></div>
+  <div class="dash"></div>
+  <div class="binnacle"></div>
+  <svg id="wheelSvg" viewBox="-100 -100 200 200" aria-hidden="true">
+    <g id="wheelRot">
+      <circle class="rim" r="84"/>
+      <circle class="rimHi" r="84"/>
+      <path class="spoke" d="M0 0 L-78 6"/>
+      <path class="spoke" d="M0 0 L78 6"/>
+      <path class="spoke" d="M0 0 L0 76"/>
+      <circle class="hub" r="24"/>
+      <rect class="mark" x="-11" y="-95" width="22" height="22" rx="4"/>
+    </g>
+  </svg>
+</div>
+
 <div id="crash"></div>
 <script>
   // Uncaught errors show on screen instead of only in a console you can't open on a phone.
@@ -74,15 +99,16 @@
 <script type="importmap">
 { "imports": {
   "three": "./js/vendor/three.module.min.js",
-  "./js/stage.js": "./js/stage.js?v=1788878010",
-  "./js/car.js": "./js/car.js?v=1788878010",
-  "./js/wheel.js": "./js/wheel.js?v=1788878010",
-  "./js/controls.js": "./js/controls.js?v=1788878010",
-  "./js/air.js": "./js/air.js?v=1788878010",
-  "./js/cockpit.js": "./js/cockpit.js?v=1788878010",
-  "./js/audio.js": "./js/audio.js?v=1788878010"
+  "./js/stage.js": "./js/stage.js?v=1788878893",
+  "./js/car.js": "./js/car.js?v=1788878893",
+  "./js/wheel.js": "./js/wheel.js?v=1788878893",
+  "./js/controls.js": "./js/controls.js?v=1788878893",
+  "./js/air.js": "./js/air.js?v=1788878893",
+  "./js/cockpit.js": "./js/cockpit.js?v=1788878893",
+  "./js/glass.js": "./js/glass.js?v=1788878893",
+  "./js/audio.js": "./js/audio.js?v=1788878893"
 } }
 </script>
-<script type="module" src="./js/main.js?v=1788878010"></script>
+<script type="module" src="./js/main.js?v=1788878893"></script>
 </body>
 </html>

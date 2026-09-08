@@ -30,15 +30,24 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
   for (let i = 0; i < 120 * 240; i++) {
     const g = stage.sample(car.x, car.z);
 
-    // aim at a point down the road
-    const ai = Math.min(stage.samples.length - 1, g.index + Math.round(lookahead / 2));
+    // Aim at a point down the road. The lookahead has to scale with speed — a fixed
+    // 26m is only 0.6s of vision at 100mph, and the car simply drives off.
+    const aheadM = Math.max(18, Math.min(75, 14 + car.speed * 0.95));
+    const ai = Math.min(stage.samples.length - 1, g.index + Math.round(aheadM / 2));
     const a = stage.samples[ai];
     const want = Math.atan2(a.x - car.x, a.z - car.z);
     const err = angDiff(want - car.yaw);
 
     wheel.held = true;
     wheel.target = Math.max(-1, Math.min(1, -err * gain));   // negated: positive wheel = right = decreasing yaw
-    hb = Math.abs(err) > hbThresh && car.speed > 16 ? 1 : 0;
+
+    // Brake for what's coming: estimate the lateral load the corner ahead will demand
+    // and slow down if it's beyond grip. Without this it just carries speed into walls.
+    const bi = Math.min(stage.samples.length - 1, g.index + Math.round(aheadM / 2) + 15);
+    const curve = Math.abs(angDiff(stage.samples[bi].head - stage.samples[g.index].head));
+    const arc = Math.max(6, (bi - g.index) * 2);
+    const needLat = curve > 1e-4 ? (car.speed * car.speed) * (curve / arc) : 0;
+    hb = (needLat > 9.0 || Math.abs(err) > hbThresh) && car.speed > 14 ? 1 : 0;
 
     wheel.update(FIXED, car.speedFactor);
     car.step(FIXED, wheel.pos, hb, g);

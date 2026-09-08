@@ -6,8 +6,9 @@
 // a downshift (scalpel, keeps speed).
 
 export const CAR = {
-  power: 15.5,          // forward accel at a standstill, m/s^2
-  powerFalloff: 0.055,  // how fast power dies off with speed
+  power: 14.0,          // forward accel at a standstill, m/s^2
+  powerFalloff: 0.011,  // how fast power dies off with speed. 0.055 strangled it:
+                        // 0-60 took 11s and it topped out at 61mph.
   topSpeed: 47,         // m/s, ~105 mph
   drag: 0.0042,
   rollResist: 0.42,
@@ -22,10 +23,11 @@ export const CAR = {
 
   gripLat: 3.05,        // lateral grip on gravel. Lower = slidier.
   gripLatBrake: 0.42,   // lateral grip with the handbrake down
-  brakeDrag: 1.65,      // speed scrubbed by the handbrake
+  brakeDrag: 0.60,      // speed scrubbed by the handbrake. 1.65 was 4.5g of
+                        // deceleration, which is why a tap threw the car forward.
 
   downshiftYaw: 2.35,   // one-shot rotation kick from a downshift
-  downshiftCost: 0.055, // fraction of speed given up for it
+  downshiftCost: 0.035, // fraction of speed given up for it
   downshiftCooldown: 0.42,
 
   offroadGrip: 0.55,    // grip multiplier off the road
@@ -38,7 +40,7 @@ export const CAR = {
   rollTrip: 8.5,        // sideways m/s that tips the car when a wheel digs in off-road
   rollLanding: 0.90,    // landing severity that puts it on its roof
 
-  gravity: 18.0,        // lower than before so launches hang longer
+  gravity: 22.5,        // exaggerated, so jumps come down decisively
   airYaw: 1.35,         // how much the wheel can rotate you in mid-air
 };
 
@@ -217,8 +219,12 @@ export class Car {
     // altitude over terrain. That, not the lean, was why it felt like a plane.
     const travelPitch = Math.atan2(this.vy, Math.max(5, Math.abs(this.vf)));
     // Weight transfer on top: it squats under power and dives under braking.
-    this.accelLong = (this.vf - vfBefore) / Math.max(dt, 1e-6);
-    const transfer = this.airborne ? 0 : Math.max(-0.10, Math.min(0.10, this.accelLong * 0.010));
+    // Weight transfer is a SUSPENSION response, so it has to lag and stay small. Reading
+    // raw per-tick acceleration made a downshift (an instant speed change) spike it and
+    // slam the nose down on a tap.
+    const rawAccel = (this.vf - vfBefore) / Math.max(dt, 1e-6);
+    this.accelLong += (rawAccel - this.accelLong) * Math.min(1, 4 * dt);
+    const transfer = this.airborne ? 0 : Math.max(-0.045, Math.min(0.045, this.accelLong * 0.0045));
     const targetPitch = Math.max(-0.55, Math.min(0.55, travelPitch * 0.85 + transfer));
     this.pitch += (targetPitch - this.pitch) * Math.min(1, 12 * dt);
   }

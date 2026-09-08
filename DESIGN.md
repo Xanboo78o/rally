@@ -111,6 +111,14 @@ genuinely blinding and makes traps fair. Problem to design around: you never see
 car, so the personality goes *inside* — dashboard, switches, cage, whatever dangles off
 the mirror.
 
+The interior is a **2D overlay**, not 3D geometry — a real onboard camera is bolted to
+the car, so the dash and wheel are perfectly static and only the world moves behind them.
+Which means the interior is *artwork*: Adam can draw a dashboard per manufacturer the way
+he draws everything else, and it costs nothing to render. Only the bonnet stays in 3D, so
+it takes real light and occludes the road. The **windscreen is its own layer** on top —
+dust builds up off the road, and it's where rain, mud and cracks go when the daily roll
+asks for them.
+
 **Controls — two thumbs, both parked on the dashboard where they block nothing.**
 
 - No throttle. You're always flat out.

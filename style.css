@@ -147,3 +147,56 @@ html, body {
   .card h1 { font-size: 26px; }
   .card li { font-size: 12px; margin: 5px 0; }
 }
+
+/* ------------------------------------------------------- windscreen + cockpit --- */
+#app { z-index: 0; }
+#glass { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+
+#cockpit {
+  position: fixed; inset: 0; z-index: 3;
+  pointer-events: none; overflow: hidden;
+}
+
+/* A-pillars, angled in from the top corners. */
+#cockpit .pillar {
+  position: absolute; top: -12%; height: 132%; width: 3.4vh;
+  background: linear-gradient(90deg, #6d2f29, #98413a 45%, #55231e);
+}
+#cockpit .pillar.l { left: 1.5%; transform: rotate(9.5deg); transform-origin: top center; }
+#cockpit .pillar.r { right: 1.5%; transform: rotate(-9.5deg); transform-origin: top center; }
+
+/* Dashboard. Sits behind the wheel, curving slightly away at the top. */
+#cockpit .dash {
+  position: absolute; left: -6%; right: -6%; bottom: -2%; height: 21%;
+  background: linear-gradient(180deg, #212429 0%, #17191d 38%, #101215 100%);
+  border-radius: 46% 46% 0 0 / 26% 26% 0 0;
+  box-shadow: inset 0 2px 0 rgba(242,239,233,.07);
+}
+#cockpit .binnacle {
+  position: absolute; left: 50%; bottom: 20.5%;
+  width: 30vh; height: 7vh; transform: translateX(-50%);
+  background: linear-gradient(180deg, #24272c, #16181c);
+  border-radius: 42% 42% 12% 12% / 60% 60% 18% 18%;
+}
+
+/* The wheel. Overlaps the dash, the way it does from the driver's seat. */
+#wheelSvg {
+  position: absolute; left: 50%; bottom: -7%;
+  width: 47vh; height: 47vh; transform: translateX(-50%);
+  overflow: visible;
+}
+#wheelSvg .rim   { fill: none; stroke: #15161b; stroke-width: 19; }
+#wheelSvg .rimHi { fill: none; stroke: #4a505c; stroke-width: 4; opacity: .8; }
+#wheelSvg .spoke { stroke: #24272d; stroke-width: 15; stroke-linecap: round; fill: none; }
+#wheelSvg .hub   { fill: #2c2f36; }
+#wheelSvg .mark  { fill: var(--red); }
+
+#hud { z-index: 5; }
+#note { z-index: 6; }
+#airFlash { z-index: 4; }
+
+/* Short screens: shrink the interior so it never eats the road. */
+@media (max-height: 400px) {
+  #wheelSvg { width: 42vh; height: 42vh; bottom: -8%; }
+  #cockpit .dash { height: 22%; }
+}
