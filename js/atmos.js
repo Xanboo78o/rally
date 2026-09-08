@@ -77,15 +77,19 @@ export const ATMOS = {
   // ---- THE GORGE — a slot in the rock. Dark, blue, and it answers you back ----
   gorge: {
     name: 'THE GORGE',
-    sky: 0x4f5f74,
-    fog: [22, 200],
-    sun: { color: 0xbcd0ee, int: 0.48, pos: [-20, 200, 10] },
-    hemi: { sky: 0x6d80a0, ground: 0x1d2430, int: 0.80 },
-    ground: { road: 0x6c6a68, verge: 0x4a4a4e, rut: 0x585553, scar: 0x504e4c,
-              tuft: 0x3c4a38, tree: 0x232c2a, stone: 0x74767a, post: 0xc0c6d0, wall: 0x5f6167, floor: 0x363b44 },
-    look: { exposure: 0.90, tint: [0.90, 0.97, 1.12], lift: [0.014, 0.020, 0.034],
-            sat: 0.78, con: 1.16, vig: 0.62, grain: 0.050,
-            haze: 0.80, hazeNear: 30, hazeFar: 190, heat: 0.0 },
+    sky: 0x5b6c84,
+    // Lit enough to DRIVE. The first version was properly menacing and you genuinely
+    // could not find the road at 58mph — in linked corners with no run-off that isn't
+    // atmosphere, it's unfair. The blue, the closeness and the vignette do the work;
+    // the road surface and the marker posts stay readable on purpose.
+    fog: [30, 210],
+    sun: { color: 0xbcd0ee, int: 0.74, pos: [-20, 200, 10] },
+    hemi: { sky: 0x8698b6, ground: 0x232b38, int: 1.02 },
+    ground: { road: 0x8a8782, verge: 0x5d5d61, rut: 0x6f6c69, scar: 0x656360,
+              tuft: 0x46543f, tree: 0x2b3532, stone: 0x8a8c90, post: 0xd6dbe4, wall: 0x6a6c73, floor: 0x434955 },
+    look: { exposure: 1.00, tint: [0.91, 0.97, 1.11], lift: [0.018, 0.024, 0.038],
+            sat: 0.80, con: 1.12, vig: 0.50, grain: 0.048,
+            haze: 0.80, hazeNear: 34, hazeFar: 195, heat: 0.0 },
     sound: { space: 0.62, size: 0.090, decay: 0.76, tone: 1900, dark: 4200, air: 1.25 },
   },
 
