@@ -91,6 +91,8 @@ let hoodDirt = 0;
 let fading = false;
 let prevBumpY = 0;
 let cabinBump = 0;
+let cabinTarget = 0;
+const CABIN_LAG = 0.09;   // seconds of head lag. Higher = heavier, sloppier head.
 
 function startFade() {
   fading = true;
@@ -278,9 +280,13 @@ function render(dtReal) {
     rumblePitch = surfaceBump(d * 1.31 + 5) * 0.075 * k;
     rumbleRoll = surfaceBump(d * 0.77 + 11) * 0.055 * k;
 
-    // Your head is on a seat; the dash is bolted to the car. So the interior jolts
-    // against you rather than staying nailed to the screen.
-    cabinBump = surfaceBump(d * 0.91 + 3) * 0.040 * k * innerHeight;
+    // Your head is on a seat; the dash is bolted to the car. So the interior moves
+    // against you — but ONLY off the road, and a head has mass, so it can't snap to a
+    // waveform. Two things keep it from looking like it's teleporting: the target uses
+    // a single slow component instead of the full bump (the fast harmonics are a ~20Hz
+    // buzz that just aliases into jitter), and it's then smoothed so the head lags.
+    cabinTarget = ground.onRoad ? 0
+      : Math.sin(d * 0.32 + 3) * 0.09 * car.speedFactor * innerHeight;
 
     // Suspension compression = how fast the body is being moved by the surface.
     // Past a threshold that's a real hit, so the shocks thud.
@@ -289,8 +295,11 @@ function render(dtReal) {
     if (comp > 1.4) sound.thud(Math.min(1, (comp - 1.4) / 2.6));
   } else {
     prevBumpY = 0;
-    cabinBump += (0 - cabinBump) * Math.min(1, 6 * dtReal);
+    cabinTarget = 0;
   }
+
+  // One-pole smoothing: no overshoot, no snap when you cross onto grass and back.
+  cabinBump += (cabinTarget - cabinBump) * (1 - Math.exp(-dtReal / CABIN_LAG));
 
   camera.position.copy(eye);
 
