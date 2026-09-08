@@ -10,13 +10,14 @@ import { Car } from './car.js';
 import { Wheel, TUNE } from './wheel.js';
 import { Controls } from './controls.js';
 import { AirFx } from './air.js';
-import { buildCockpit, VISUAL_LOCK } from './cockpit.js';
+import { buildCockpit, VISUAL_LOCK, SEAM_Z } from './cockpit.js';
 import { Glass } from './glass.js';
 import { Look } from './look.js';
 import { Sound } from './audio.js';
 import { atmosAt, ATMOS, ATMOS_KEYS } from './atmos.js';
 import { Menu, sprintOfDay } from './menu.js';
 import { Post } from './post.js';
+import { Voice } from './voice.js';
 
 const FIXED = 1 / 120;
 // Speed fraction at which each gear runs out. rpm sawtooths inside each one, so the
@@ -136,6 +137,7 @@ const car = new Car();
 const wheel = new Wheel();
 const air = new AirFx();
 const sound = new Sound();
+const voice = new Voice();     // the co-driver, on the intercom
 
 // A RUN is a stretch of THIS stage: the whole thing for the Stage of the Day, or one
 // section for the daily sprint. Same road, same physics — only where you start and where
@@ -144,6 +146,11 @@ let run = null;
 let running = false;
 let paused = false;
 let resumeIn = 0;        // seconds of count-in left before the clock starts again
+// The start line. Five seconds of sitting there, and he only joins in at three — the
+// first two are yours, with nothing but an idling engine, which is what makes the
+// moment his voice arrives mean anything.
+let countIn = 0;
+let countShown = null;
 let timer = 0, timing = false, finished = false;
 let best = parseFloat(localStorage.getItem('rally.best') || '0') || 0;
 let noteSeg = -1, noteUntil = 0;
@@ -263,6 +270,8 @@ function resetRun() {
   shownPlace = atmosAt(stage.sections, run.from).name;
   $('finish').classList.remove('show');
   say(SEGMENTS[s0.seg].note);
+  countIn = AUTO ? -99 : 5.0; countShown = null;
+  voice.silence();
 }
 
 function pauseRun() {
@@ -323,6 +332,25 @@ function frame(now) {
     menu.count(0);
   }
 
+  // The start-line count. No physics runs, so the car sits on the line and the world
+  // stays there to be looked at — which is the whole reason the start area exists.
+  if (countIn > -0.9) {
+    countIn -= dtReal;
+    const n = countIn > 0 ? Math.ceil(countIn) : 'GO';
+    if (n !== countShown) {
+      countShown = n;
+      menu.count(n);
+      if (n === 3 || n === 2 || n === 1) voice.say(['count-' + n]);
+      else if (n === 'GO') voice.say(['count-go']);
+    }
+    render(0);
+    if (countIn > -0.9) return;
+    menu.count(0);
+    countShown = null;
+    // And the first pace note lands as you pull away, not before it.
+    voice.note(SEGMENTS[stage.samples[sampleAt(run.from)].seg].note);
+  }
+
   controls.update(dtReal);
   const ts = air.update(dtReal, car, car.speedFactor);
 
@@ -367,6 +395,7 @@ function step(dt) {
     if (p >= stage.segStartDist(si) - NOTE_LEAD) {
       noteSeg = si;
       say(SEGMENTS[si].note);
+      voice.note(SEGMENTS[si].note);
     } else break;
   }
 
@@ -383,6 +412,7 @@ function step(dt) {
     if (p >= run.to) {
       finished = true; timing = false;
       running = false;
+      voice.say(['stage-end']);
       menu.finished(run, timer);
     }
   }
@@ -400,7 +430,7 @@ function render(dtReal) {
   applyAtmos(A);
   // Arriving somewhere is worth naming, and the note slot already exists — so this
   // costs no new chrome, which is the rule.
-  if (A.name !== shownPlace) { shownPlace = A.name; say(A.name); }
+  if (A.name !== shownPlace) { shownPlace = A.name; say(A.name); voice.note(A.name); }
 
   camera.fov += (air.fov - camera.fov) * Math.min(1, 14 * dtReal);
   camera.updateProjectionMatrix();
@@ -492,6 +522,18 @@ function render(dtReal) {
   // look. Without this it stays pinned to the screen while you glance around, which is
   // the one thing that would give the whole illusion away.
   cockpit.rotation.x = -lookDeg * 0.01745;
+
+  // ...and for the same reason it has to take the off-road JOLT with the dashboard. The
+  // dash and the bonnet are bolted to the same car; only your head is on a seat. The
+  // interior was jolting against you and the bonnet was staying put, so the two halves
+  // of one car visibly disagreed.
+  //
+  // Matched in PIXELS at the seam — the bonnet's near edge, where it meets the bottom of
+  // the windscreen — because that's the only line where the 3D and the overlay touch. The
+  // nose moves less on screen than the seam does, which is just perspective and correct:
+  // it's a real object out in front of you, not a second flat layer.
+  const pxToWorld = (2 * SEAM_Z * Math.tan(camera.fov * 0.5 * Math.PI / 180)) / innerHeight;
+  cockpit.position.y = -cabinBump * pxToWorld;
   camera.rotateZ(car.bodyRoll + rumbleRoll);
 
   // The rim visibly lags your thumb, and unwinds on its own when you let go.
@@ -600,6 +642,7 @@ const menu = new Menu({
   onStart: spec => {
     run = spec;
     sound.start();
+    voice.attach(sound.ctx, sound.master);
     look.enable();        // needs the tap: iOS won't hand over the sensor otherwise
     menu.hide();
     menu.unpause();
@@ -642,6 +685,7 @@ if (!AUTO) { $('start').classList.add('gone'); menu.show('home'); }
 if (AUTO) {
   $('start').classList.add('gone');
   sound.start();          // so headless runs exercise the audio path too
+  voice.attach(sound.ctx, sound.master);
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot
   // can be taken at an exact moment (mid-jump, say) rather than whenever the headless
   // browser happens to get round to it.

@@ -7,6 +7,13 @@
 
 export const VISUAL_LOCK = Math.PI * 2;   // rim rotation at full lock: one turn each way
 
+// How far in front of the eye the bonnet's NEAR edge sits. That edge is the seam — the
+// one line where the 3D bonnet and the DOM interior actually meet — so anything that
+// moves the interior has to move the bonnet by the same number of PIXELS there, and
+// this is the distance that conversion is done at. Exported so the number can't drift
+// away from the geometry below.
+export const SEAM_Z = 1.15;
+
 // Deterministic so the muck is in the same place every run rather than crawling
 // about between frames.
 function rng(seed) {
@@ -71,7 +78,7 @@ export function buildCockpit(THREE) {
   // edges, even at the widest speed-FOV.
   // Kept SHALLOW on purpose. At 4.6m long it filled a fifth of the screen and, with
   // the dash, left barely any road visible — and road is where the speed comes from.
-  const NEAR_Z = -1.15, FAR_Z = -2.70;
+  const NEAR_Z = -SEAM_Z, FAR_Z = -2.70;
   const NEAR_W = 3.40, FAR_W = 1.00;
   // Well below the eye line. At -0.26 it sat almost level with your eyes and read as a
   // band floating across the middle of the screen instead of the front of your car.
