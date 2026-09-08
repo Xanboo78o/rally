@@ -32,7 +32,9 @@ export const CAR = {
   offroadDrag: 3.4,     // extra drag off the road
 
   understeerScrub: 2.2, // m/s^2 of speed lost per unit of over-turning
-  leanPerG: 0.038,      // how far the body leans per m/s^2 of cornering load
+  leanPerG: 0.010,      // how far the body leans per m/s^2 of cornering load. 0.038 gave
+                        // 19 degrees at the limit, which banks like an aircraft — a real
+                        // car rolls 3-7 degrees.
   rollTrip: 8.5,        // sideways m/s that tips the car when a wheel digs in off-road
   rollLanding: 0.90,    // landing severity that puts it on its roof
 

@@ -18,6 +18,13 @@ const NOTE_LEAD = 55;      // metres before a corner that the co-driver calls it
 
 const $ = id => document.getElementById(id);
 
+// Deterministic road texture as a function of distance along the stage. Same bumps
+// every run, so you can learn them — and because it's driven by position rather than
+// random noise, it reads as a SURFACE rather than as camera shake.
+function surfaceBump(d) {
+  return Math.sin(d * 2.7) * 0.55 + Math.sin(d * 6.1 + 1.3) * 0.30 + Math.sin(d * 13.7 + 2.9) * 0.15;
+}
+
 // ---------------------------------------------------------------------------
 // scene
 // ---------------------------------------------------------------------------
@@ -186,6 +193,7 @@ function step(dt) {
 const eye = new THREE.Vector3();
 
 function render(dtReal) {
+  const ground = stage.sample(car.x, car.z);
   camera.fov += (air.fov - camera.fov) * Math.min(1, 14 * dtReal);
   camera.updateProjectionMatrix();
 
@@ -198,10 +206,21 @@ function render(dtReal) {
   );
 
   camShake = Math.max(0, camShake - dtReal * 3.2);
-  const rough = (!car.airborne && car.speedFactor > 0.1) ? car.speedFactor * 0.012 : 0;
-  const shake = camShake * 0.055 + rough;
+  const shake = camShake * 0.055;
   eye.y += (Math.random() - 0.5) * shake;
   eye.x += (Math.random() - 0.5) * shake * 0.6;
+
+  // The gravel rattles you while you're on it, and goes GLASS SMOOTH the moment you
+  // leave the ground. That contrast is what makes air time feel like flying — without
+  // it the road feels the same as the sky and the jump has nothing to stand against.
+  let rumbleRoll = 0, rumblePitch = 0;
+  if (!car.airborne) {
+    const d = ground.progress;
+    const amp = 0.030 * car.speedFactor * (ground.onRoad ? 1 : 3.2);
+    eye.y += surfaceBump(d) * amp;
+    rumbleRoll = surfaceBump(d * 0.7 + 11) * amp * 0.9;
+    rumblePitch = surfaceBump(d * 1.3 + 5) * amp * 0.7;
+  }
 
   camera.position.copy(eye);
 
@@ -211,13 +230,13 @@ function render(dtReal) {
   // +PI because a three.js camera looks down its local -Z, while the car's heading
   // is (sin yaw, cos yaw). Without it you drive the whole stage in reverse.
   camera.rotateY(Math.PI + car.yaw - car.slip * 0.28);
-  camera.rotateX(car.pitch + air.shake * (Math.random() - 0.5) * 0.06);
-  camera.rotateZ(car.roll * 0.55);
+  camera.rotateX(car.pitch + rumblePitch + air.shake * (Math.random() - 0.5) * 0.06);
+  camera.rotateZ(car.roll * 0.75 + rumbleRoll);
 
   // The rim visibly lags your thumb, and unwinds on its own when you let go.
   rimMesh.rotation.z = -wheel.pos * VISUAL_LOCK;
 
-  sound.update(car.speedFactor, stage.sample(car.x, car.z).onRoad, air.duck, dtReal);
+  sound.update(car.speedFactor, ground.onRoad, air.duck, dtReal);
   renderer.render(scene, camera);
 }
 

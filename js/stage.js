@@ -181,6 +181,28 @@ export function buildStageMesh(THREE, stage) {
   group.add(mk(verge, 0x5c6b42));
   group.add(mk(road, 0x9a8b72));
 
+  // ---- wheel ruts ----------------------------------------------------------
+  // Two worn lines down the road. They stream past right under the camera, which is
+  // most of what tells you you're ON something rather than gliding over it.
+  const rut = { pos: [], idx: [] };
+  const RUT_OFF = 0.78, RUT_W = 0.17;
+  for (let i = 0; i < S.length; i++) {
+    const s = S[i];
+    const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+    for (const side of [-1, 1]) {
+      const c0 = RUT_OFF * side - RUT_W, c1 = RUT_OFF * side + RUT_W;
+      rut.pos.push(s.x + rx * c0, s.y + 0.035, s.z + rz * c0);
+      rut.pos.push(s.x + rx * c1, s.y + 0.035, s.z + rz * c1);
+    }
+    if (i > 0) {
+      for (const q of [0, 1]) {
+        const base = (i - 1) * 4 + q * 2, next = i * 4 + q * 2;
+        rut.idx.push(base, next, base + 1, base + 1, next, next + 1);
+      }
+    }
+  }
+  group.add(mk(rut, 0x82715a));
+
   // ---- edge posts, so you can read the road ahead in first person ----------
   const postGeo = new THREE.BoxGeometry(0.22, 1.15, 0.22);
   const postMat = new THREE.MeshLambertMaterial({ color: 0xdedad2 });
@@ -216,6 +238,24 @@ export function buildStageMesh(THREE, stage) {
   }
   trees.count = ti;
   group.add(trees);
+
+  // ---- stones along the verge, for close-range motion cues -----------------
+  const stoneGeo = new THREE.DodecahedronGeometry(0.20, 0);
+  const stoneMat = new THREE.MeshLambertMaterial({ color: 0x8c8377 });
+  const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, Math.ceil(S.length / 2) * 2 + 8);
+  let si2 = 0;
+  for (let i = 2; i < S.length; i += 2) {
+    const s = S[i];
+    const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+    for (const side of [-1, 1]) {
+      const j = (i * 53 + (side > 0 ? 29 : 7)) % 23;
+      const d = s.w + 0.25 + j * 0.11;
+      m.makeTranslation(s.x + rx * d * side, s.y - 0.05 - (j % 3) * 0.02, s.z + rz * d * side);
+      stones.setMatrixAt(si2++, m);
+    }
+  }
+  stones.count = si2;
+  group.add(stones);
 
   // ---- finish gate ---------------------------------------------------------
   const last = S[S.length - 1];
