@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#9fb4c4">
+<meta name="mobile-web-app-capable" content="yes">
+<title>RALLY — feel prototype</title>
+<link rel="stylesheet" href="style.css?v=1788874983">
+</head>
+<body>
+
+<div id="app"></div>
+<div id="crash"></div>
+<script>
+  // Uncaught errors show on screen instead of only in a console you can't open on a phone.
+  var crash = function (m) { var c = document.getElementById('crash'); c.textContent = m; c.style.display = 'block'; };
+  addEventListener('error', function (e) { crash((e.message || e.error) + '  @ ' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  addEventListener('unhandledrejection', function (e) { crash('promise: ' + (e.reason && e.reason.message || e.reason)); });
+</script>
+
+<!-- co-driver call. Text for now; Adam's recordings drop in here later. -->
+<div id="note"></div>
+
+<div id="hud">
+  <div class="tl">
+    <div class="big"><span id="time">0.00</span></div>
+    <div class="sub">BEST <b id="bestTime">--</b></div>
+  </div>
+
+  <div class="tr">
+    <div class="sub">AIR <b id="air"></b></div>
+    <div class="sub">BIGGEST <b id="bestAir">--</b></div>
+    <button id="resetBtn">RESET</button>
+  </div>
+
+  <div class="br">
+    <div class="speedbox"><span id="speed">0</span><i>MPH</i></div>
+  </div>
+
+  <!-- tuning readouts: wheel position, how far your thumb is ahead of the rim, handbrake pull -->
+  <div class="tune">
+    <div class="track"><div id="posBar" class="pos"></div></div>
+    <div class="track lag"><div id="lagBar" class="lag"></div></div>
+  </div>
+  <div class="hbtrack"><div id="hbBar"></div></div>
+  <div id="shiftLight">DOWN</div>
+</div>
+
+<div id="airFlash"></div>
+
+<div id="finish">
+  <div class="card">
+    <h2 id="finishTime">0.00</h2>
+    <p id="finishTag"></p>
+    <button id="retry">RUN IT AGAIN</button>
+  </div>
+</div>
+
+<div id="start">
+  <div class="card">
+    <h1>RALLY</h1>
+    <p class="lead">feel prototype — one stage, one jump</p>
+    <ul>
+      <li><b>Left thumb</b> — grip the wheel and sweep it in an arc. Sweep left and up to go left. It's heavy at speed; let go and it unwinds by itself.</li>
+      <li><b>Right thumb</b> — <b>hold</b> for handbrake. <b>Flick down</b> for a downshift.</li>
+      <li>No throttle. You're always flat out.</li>
+    </ul>
+    <p class="keys">desk: A/D steer · SPACE handbrake · S downshift</p>
+    <button>START</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./js/vendor/three.module.min.js",
+  "./js/stage.js": "./js/stage.js?v=1788874983",
+  "./js/car.js": "./js/car.js?v=1788874983",
+  "./js/wheel.js": "./js/wheel.js?v=1788874983",
+  "./js/controls.js": "./js/controls.js?v=1788874983",
+  "./js/air.js": "./js/air.js?v=1788874983",
+  "./js/cockpit.js": "./js/cockpit.js?v=1788874983",
+  "./js/audio.js": "./js/audio.js?v=1788874983"
+} }
+</script>
+<script type="module" src="./js/main.js?v=1788874983"></script>
+</body>
+</html>

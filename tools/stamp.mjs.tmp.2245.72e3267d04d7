@@ -1,0 +1,21 @@
+// stamp.mjs — rewrite every ?v=… in index.html to the current epoch, so a push to
+// Pages can't serve new HTML against 10-minute-cached old JS.
+// Run by the pre-commit hook; also fine to run by hand: node tools/stamp.mjs
+
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const file = join(root, 'index.html');
+
+const v = Math.floor(Date.now() / 1000);
+const src = readFileSync(file, 'utf8');
+const out = src.replace(/\?v=\d+/g, `?v=${v}`);
+
+if (out !== src) {
+  writeFileSync(file, out);
+  console.log(`stamped ?v=${v}`);
+} else {
+  console.log('nothing to stamp');
+}
