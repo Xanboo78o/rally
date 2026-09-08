@@ -15,13 +15,28 @@
 const CENT = c => Math.pow(2, c / 1200);
 const rnd = (a, b) => a + Math.random() * (b - a);
 
+// Real recordings, granular. None of these files is a continuous "driving on gravel"
+// loop — they're discrete events (falling rock, digging dirt, snapping sticks). So the
+// ground is built the way good gravel always is: one sustained BED underneath, plus a
+// stream of GRAINS — short random windows cut out of the one-shots, fired at a rate
+// that scales with speed, each at a random pitch. That's the same shape as the matrix
+// spec, and it's why it never machine-guns however long you drive.
 export const SURFACES = {
-  //           filter        cut    Q     level  grain (loose stones pinging about)
-  tarmac:  { type: 'highpass', f: 1800, q: 0.6, g: 0.75, grain: 0.00 },
-  gravel:  { type: 'bandpass', f: 1250, q: 0.7, g: 1.00, grain: 0.85 },
-  dirt:    { type: 'lowpass',  f: 1050, q: 1.1, g: 2.30, grain: 1.60 },   // off-road: loud and full of stones
-  grass:   { type: 'lowpass',  f:  520, q: 0.9, g: 0.80, grain: 0.10 },
+  tarmac: { bed: null, bedGain: 0, bedRate: 1.0, cut: 2200, q: 0.6,
+            grain: [], rate: 0, gGain: 0 },
+  gravel: { bed: 'dirt-bed', bedGain: 0.62, bedRate: 1.00, cut: 1500, q: 0.9,
+            grain: ['grit-1', 'grit-2', 'grit-3', 'rock-1'], rate: 16, gGain: 0.55 },
+  // Off the road: louder bed, and the bank gains sticks and wood, because that's what
+  // you're actually driving through out there.
+  dirt:   { bed: 'dirt-bed', bedGain: 1.15, bedRate: 1.22, cut: 1050, q: 1.2,
+            grain: ['grit-1', 'grit-2', 'rock-1', 'rock-2', 'stick-1', 'stick-2', 'stick-3', 'wood-1'],
+            rate: 40, gGain: 1.0 },
+  grass:  { bed: 'dirt-bed', bedGain: 0.85, bedRate: 0.92, cut: 700, q: 1.1,
+            grain: ['stick-1', 'stick-2', 'stick-3', 'wood-1', 'grit-2'], rate: 30, gGain: 0.9 },
 };
+
+const CLIPS = ['dirt-bed', 'grit-1', 'grit-2', 'grit-3', 'rock-1', 'rock-2', 'rock-3',
+               'smash-1', 'stick-1', 'stick-2', 'stick-3', 'wood-1'];
 
 export class Sound {
   constructor() {
@@ -48,36 +63,81 @@ export class Sound {
     return buf;
   }
 
-  // One full four-stroke cycle at the given rpm: four firings, each a decaying
-  // resonance plus a burst of noise, unevenly spaced and unevenly loud.
-  _engineCycle(rpm, cylinders = 4) {
+  // MANY cycles, not one. Looping a single cycle was the mistake: the per-firing
+  // irregularity I baked in then repeated identically forever, which makes it a fixed
+  // periodic waveform — which is a tone with harmonics, which is a synth. Engines
+  // don't repeat. Twenty cycles, each firing different, and the loop is long enough
+  // that the ear stops hearing a period at all.
+  _engineLoop(rpm, cylinders = 4, cycles = 20) {
     const sr = this.ctx.sampleRate;
     const cycle = 120 / rpm;                    // seconds for two crank revolutions
-    const n = Math.max(64, Math.floor(sr * cycle));
+    const n = Math.max(256, Math.floor(sr * cycle * cycles));
     const buf = this.ctx.createBuffer(1, n, sr);
     const d = buf.getChannelData(0);
     let s = 9871 + (rpm | 0);
     const rand = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 
-    for (let c = 0; c < cylinders; c++) {
-      const jitter = (rand() - 0.5) * 0.06;     // never perfectly even
-      const at = Math.floor(n * ((c + 0.5) / cylinders + jitter));
-      const amp = 0.72 + rand() * 0.45;
-      const fRes = 95 + rand() * 85;            // exhaust resonance for this pot
-      const decay = 0.0034 + rand() * 0.0028;
-      const len = Math.min(n, Math.floor(sr * decay * 7));
+    const total = cycles * cylinders;
+    for (let k = 0; k < total; k++) {
+      const ci = Math.floor(k / cylinders), pot = k % cylinders;
+      const jitter = (rand() - 0.5) * 0.05;
+      const at = Math.floor(sr * cycle * (ci + (pot + 0.5) / cylinders + jitter));
+      const amp = 0.62 + rand() * 0.6;
+      const fRes = 88 + rand() * 110;
+      const decay = 0.0030 + rand() * 0.0034;
+      const len = Math.min(n - 1, Math.floor(sr * decay * 8));
       for (let i = 0; i < len; i++) {
         const t = i / sr;
         const env = Math.exp(-t / decay);
-        const tone = Math.sin(2 * Math.PI * fRes * t) + 0.45 * Math.sin(2 * Math.PI * fRes * 2.6 * t);
-        const hiss = (rand() * 2 - 1) * 0.55 * Math.exp(-t / (decay * 0.4));
-        d[(at + i) % n] += amp * env * (tone * 0.55 + hiss);
+        const tone = Math.sin(2 * Math.PI * fRes * t) + 0.42 * Math.sin(2 * Math.PI * fRes * 2.6 * t);
+        const hiss = (rand() * 2 - 1) * 0.6 * Math.exp(-t / (decay * 0.35));
+        d[(at + i) % n] += amp * env * (tone * 0.5 + hiss);
       }
     }
     let peak = 0;
     for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(d[i]));
     if (peak > 0) for (let i = 0; i < n; i++) d[i] /= peak;
     return buf;
+  }
+
+  async _loadAll() {
+    // Decoded in the background. Everything below degrades gracefully until they land,
+    // so a slow connection never blocks the start of a run.
+    await Promise.all(CLIPS.map(async name => {
+      try {
+        const res = await fetch('./audio/' + name + '.mp3');
+        this.buf[name] = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      } catch (e) { /* keep going without it */ }
+    }));
+    if (this.buf['dirt-bed'] && !this.bedSrc) {
+      this.bedSrc = this.ctx.createBufferSource();
+      this.bedSrc.buffer = this.buf['dirt-bed'];
+      this.bedSrc.loop = true;
+      this.bedSrc.connect(this.bedFilter);
+      this.lfoGain.connect(this.bedSrc.playbackRate);
+      this.bedSrc.start(0, Math.random() * this.buf['dirt-bed'].duration);
+    }
+    this.loaded = true;
+  }
+
+  // A GRAIN: a short window cut from a random point in a real recording, at a random
+  // pitch. A handful of files gives effectively endless variation this way.
+  _grain(name, gain, dur, rate = 1, delay = 0) {
+    const b = this.buf[name];
+    if (!b) return;
+    const ctx = this.ctx, t = ctx.currentTime + delay;
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.008);
+    g.gain.setValueAtTime(Math.max(0.0002, gain), t + dur * 0.55);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(g); g.connect(this.grainBus);
+    const off = Math.random() * Math.max(0.01, b.duration - dur * rate - 0.02);
+    src.start(t, off, dur * rate + 0.02);
+    src.stop(t + dur + 0.05);
   }
 
   start() {
@@ -117,15 +177,27 @@ export class Sound {
     this.engFilter.connect(this.engBus);
     this.engBus.connect(this.master);
 
+    // Three references instead of two, so idle is genuinely slow thumps rather than a
+    // fast loop dragged down to a crawl.
     this.engLayers = [];
-    for (const refRpm of [1500, 4600]) {
+    for (const refRpm of [950, 2500, 5600]) {
       const src = ctx.createBufferSource();
-      src.buffer = this._engineCycle(refRpm);
+      src.buffer = this._engineLoop(refRpm);
       src.loop = true;
       const g = ctx.createGain(); g.gain.value = 0;
       src.connect(g); g.connect(this.engFilter);
       src.start();
       this.engLayers.push({ src, g, refRpm });
+    }
+
+    // EXHAUST FORMANTS. Fixed resonances alongside the dry signal, so the engine keeps
+    // one voice while its pitch moves — the way a real pipe does, since its length
+    // doesn't change with revs. This is a lot of what stops it sounding like a synth.
+    for (const [f, q, g] of [[128, 8, 1.0], [385, 5.5, 0.6], [1040, 3.5, 0.32]]) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+      const gg = ctx.createGain(); gg.gain.value = g;
+      this.engFilter.connect(bp); bp.connect(gg); gg.connect(this.engBus);
     }
 
     // Low-order body boom, so it has some weight underneath the pulses.
@@ -135,31 +207,31 @@ export class Sound {
     this.engSub.connect(this.engSubG); this.engSubG.connect(this.master);
     this.engSub.start();
 
-    // ---- SURFACE BANKS --------------------------------------------------------
-    // One loop per material, all running, crossfaded by the surface parameter.
-    this.surf = {};
-    let si = 0;
-    for (const [name, cfg] of Object.entries(SURFACES)) {
-      const src = ctx.createBufferSource();
-      src.buffer = this._noise(3, 101 + si * 977);
-      src.loop = true;
-      const f = ctx.createBiquadFilter();
-      f.type = cfg.type; f.frequency.value = cfg.f; f.Q.value = cfg.q;
-      const g = ctx.createGain(); g.gain.value = 0;
-      src.connect(f); f.connect(g); g.connect(this.master);
-      src.start();
-      this.surf[name] = { src, f, g, cfg };
-      si++;
-    }
+    // ---- SURFACE: one sampled bed, retuned per material -----------------------
+    this.bedGain = ctx.createGain(); this.bedGain.gain.value = 0;
+    this.bedFilter = ctx.createBiquadFilter();
+    this.bedFilter.type = 'lowpass';
+    this.bedFilter.frequency.value = 1400;
+    this.bedFilter.Q.value = 1.0;
+    this.bedFilter.connect(this.bedGain);
+    this.bedGain.connect(this.master);
+    this.bedSrc = null;          // started once the sample has decoded
 
-    // A slow LFO on playback rate keeps the loops from ever repeating exactly.
-    this.lfo = ctx.createOscillator();
+    // A slow wander on the bed's playback rate, so a looped recording never lands on
+    // the same texture twice however long you hold a speed.
+    this.lfo = this.ctx.createOscillator();
     this.lfo.frequency.value = 0.23;
-    this.lfoGain = ctx.createGain();
+    this.lfoGain = this.ctx.createGain();
     this.lfoGain.gain.value = 0.03;            // +/- 3%
     this.lfo.connect(this.lfoGain);
-    for (const k of Object.keys(this.surf)) this.lfoGain.connect(this.surf[k].src.playbackRate);
     this.lfo.start();
+
+    // Grains and impacts share this bus so the whole ground can be ducked at once.
+    this.grainBus = ctx.createGain(); this.grainBus.gain.value = 1;
+    this.grainBus.connect(this.master);
+
+    this.buf = {};
+    this._loadAll();
 
     // ---- SLIP ----------------------------------------------------------------
     // The tell that you're sliding: harsher, higher, and it sits on top of everything.
@@ -204,27 +276,36 @@ export class Sound {
       L.src.playbackRate.setTargetAtTime(revs / L.refRpm, now, 0.03);
       // Crossfade toward whichever reference is closer, in octaves.
       const dist = Math.abs(Math.log2(revs / L.refRpm));
-      L.g.gain.setTargetAtTime(Math.max(0, 1 - dist * 0.85), now, 0.05);
+      L.g.gain.setTargetAtTime(Math.max(0, 1 - dist * 1.15), now, 0.05);
     }
     this.engFilter.frequency.setTargetAtTime(620 + rpm * 3400 + sp * 900, now, 0.05);
     this.engBus.gain.setTargetAtTime(0.34 * (0.45 + 0.55 * rpm) * duck, now, 0.04);
     this.engSub.frequency.setTargetAtTime(revs / 60 * 2, now, 0.04);
     this.engSubG.gain.setTargetAtTime(0.075 * (0.3 + 0.7 * rpm) * duck, now, 0.05);
 
-    // ---- surfaces: crossfade the banks, drive level and pitch from speed -------
-    if (p.surface && this.surf[p.surface]) this.surface = p.surface;
-    for (const [name, s] of Object.entries(this.surf)) {
-      const on = name === this.surface ? 1 : 0;
-      const level = 0.26 * s.cfg.g * Math.pow(sp, 0.75) * duck * on;
-      s.g.gain.setTargetAtTime(level, now, 0.15);         // crossfade, never a cut
-      s.src.playbackRate.setTargetAtTime(0.72 + sp * 0.75, now, 0.10);
-      s.f.frequency.setTargetAtTime(s.cfg.f * (0.72 + sp * 0.6), now, 0.10);
-    }
+    // ---- surfaces -------------------------------------------------------------
+    if (p.surface && SURFACES[p.surface]) this.surface = p.surface;
+    const S = SURFACES[this.surface];
 
-    // Loose stones pinging off the underside — random, rate scales with speed.
-    const grain = SURFACES[this.surface].grain;
-    if (grain > 0 && duck > 0.5 && now - this._lastGrain > 0.045) {
-      if (Math.random() < grain * sp * dt * 34) { this._ping(sp); this._lastGrain = now; }
+    // The bed is one recording retuned per material, so switching surfaces is a
+    // crossfade of gain/pitch/filter rather than a cut between clips.
+    this.bedGain.gain.setTargetAtTime(0.62 * S.bedGain * Math.pow(sp, 0.7) * duck, now, 0.14);
+    if (this.bedSrc) this.bedSrc.playbackRate.setTargetAtTime(S.bedRate * (0.68 + sp * 0.62), now, 0.12);
+    this.bedFilter.frequency.setTargetAtTime(S.cut * (0.7 + sp * 0.65), now, 0.12);
+    this.bedFilter.Q.setTargetAtTime(S.q, now, 0.2);
+
+    // Grains: stones and sticks flying off the surface. Rate rises with speed, and
+    // each one is a different window at a different pitch.
+    this.grainBus.gain.setTargetAtTime(duck, now, 0.05);
+    if (S.grain.length && duck > 0.45) {
+      const n = S.rate * Math.pow(sp, 1.25) * dt;
+      let tries = n > 1 ? Math.floor(n) : 0;
+      if (Math.random() < n - tries) tries++;
+      for (let i = 0; i < Math.min(tries, 4); i++) {
+        const name = S.grain[(Math.random() * S.grain.length) | 0];
+        this._grain(name, (0.20 + 0.28 * sp) * S.gGain, rnd(0.06, 0.20),
+                    CENT(rnd(-450, 450)), rnd(0, 0.03));
+      }
     }
 
     // ---- slip ------------------------------------------------------------------
@@ -279,8 +360,8 @@ export class Sound {
 
   // A stone off the floorpan.
   _ping(sp) {
-    const buf = this.hitBufs[(Math.random() * this.hitBufs.length) | 0];
-    this._burst(buf, { gain: 0.045 + 0.06 * sp, cut: rnd(1700, 4200), q: rnd(5, 12), dur: rnd(0.04, 0.10), rate: CENT(rnd(-200, 200)) });
+    this._grain(Math.random() < 0.5 ? 'grit-1' : 'rock-1', 0.16 + 0.2 * sp,
+                rnd(0.05, 0.13), CENT(rnd(-500, 500)));
   }
 
   // Rolling it: panel crush plus glass and metal. Several detuned resonances stacked,
@@ -305,8 +386,15 @@ export class Sound {
     o.connect(g); g.connect(this.master);
     o.start(now); o.stop(now + 0.6);
 
+    // Real debris on top of the synthesised crumple: rock smashing, wood splitting,
+    // stone tumbling. Two or three at once, all pitched differently.
+    const wreck = ['smash-1', 'rock-2', 'rock-3', 'wood-1', 'stick-3'];
+    for (let i = 0; i < 3; i++) {
+      this._grain(wreck[(Math.random() * wreck.length) | 0], (0.45 + 0.4 * f) / (i * 0.6 + 1),
+                  rnd(0.18, 0.55), CENT(rnd(-350, 250)), rnd(0, 0.09));
+    }
     // tearing sheet metal
-    this._burst(buf, { gain: 0.38 * f, cut: rnd(700, 1200), q: 0.9, dur: rnd(0.22, 0.40), rate: CENT(rnd(-150, 150)) });
+    this._burst(buf, { gain: 0.22 * f, cut: rnd(700, 1200), q: 0.9, dur: rnd(0.22, 0.40), rate: CENT(rnd(-150, 150)) });
     // ringing panels and glass
     for (let i = 0; i < 3; i++) {
       this._burst(buf, {

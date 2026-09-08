@@ -94,6 +94,27 @@ let cabinBump = 0;
 let cabinTarget = 0;
 const CABIN_LAG = 0.09;   // seconds of head lag. Higher = heavier, sloppier head.
 
+// FOUR-CORNER SUSPENSION. The camera shake used to be the road waveform read straight
+// off, which is why it teleported: its fastest component is ~20Hz at speed, and at
+// 60fps that's just aliasing into jitter. A real car never sees that, because the
+// springs are between it and the road. So each corner is now a mass on a spring with a
+// damper, chasing the ground under it, and the camera is driven by what the BODY does:
+//   heave = all four together, pitch = front vs rear, roll = left vs right.
+// Soft and underdamped, because a rally car is: it wallows and keeps moving after the
+// bump, which is the difference between suspension and shake.
+const SUS = {
+  freq: 1.75,        // Hz. Low = long, soft travel.
+  damp: 0.34,        // ratio. Under 1 so it overshoots and floats.
+  wheelbase: 2.55,
+  track: 1.55,
+  roadOnRoad: 0.16,  // metres of road input
+  roadOffRoad: 0.55, // off it, the ground is savage
+  lateral: 0.75,     // left/right road difference. Must be SMALL — offset the sides by
+                     // half a wavelength and the corners cancel and nothing moves.
+};
+const susY = [0, 0, 0, 0];   // FL FR RL RR body-corner heights
+const susV = [0, 0, 0, 0];
+
 function startFade() {
   fading = true;
   $('fade').classList.add('on');
@@ -269,31 +290,48 @@ function render(dtReal) {
   let rumbleRoll = 0, rumblePitch = 0;
   if (!car.airborne) {
     const d = ground.progress;
-    // OFF-ROAD IS THE PUNISHMENT. Five times the violence of the road, on top of a
-    // road that now shakes harder than it did.
-    const k = car.speedFactor * (ground.onRoad ? 1 : 5.0);
-    // Moving the camera up and down barely shifts the view — a translation hardly
-    // changes what a wide lens sees. The PITCH wobble is what actually throws the
-    // picture around, so that carries the bump and the rise/fall backs it up.
-    const bumpY = surfaceBump(d) * 0.11 * k;
-    eye.y += bumpY;
-    rumblePitch = surfaceBump(d * 1.31 + 5) * 0.075 * k;
-    rumbleRoll = surfaceBump(d * 0.77 + 11) * 0.055 * k;
+    // Road height under each wheel. The rear hits a bump AFTER the front, which is
+    // what makes a car pitch over bumps rather than just bounce.
+    const amp = (ground.onRoad ? SUS.roadOnRoad : SUS.roadOffRoad) * car.speedFactor;
+    const half = SUS.wheelbase * 0.5;
+    const road = [
+      surfaceBump(d + half) * amp, surfaceBump(d + half + SUS.lateral) * amp,
+      surfaceBump(d - half) * amp, surfaceBump(d - half + SUS.lateral) * amp,
+    ];
+
+    const w = 2 * Math.PI * SUS.freq;
+    const K = w * w, C = 2 * SUS.damp * w;
+    for (let i = 0; i < 4; i++) {
+      susV[i] += ((road[i] - susY[i]) * K - susV[i] * C) * dtReal;
+      susY[i] += susV[i] * dtReal;
+    }
+
+    const heave = (susY[0] + susY[1] + susY[2] + susY[3]) * 0.25;
+    const bumpY = heave;
+    eye.y += heave;
+    rumblePitch = ((susY[0] + susY[1]) - (susY[2] + susY[3])) * 0.5 / SUS.wheelbase;
+    rumbleRoll = ((susY[0] + susY[2]) - (susY[1] + susY[3])) * 0.5 / SUS.track;
 
     // Your head is on a seat; the dash is bolted to the car. So the interior moves
     // against you — but ONLY off the road, and a head has mass, so it can't snap to a
     // waveform. Two things keep it from looking like it's teleporting: the target uses
     // a single slow component instead of the full bump (the fast harmonics are a ~20Hz
     // buzz that just aliases into jitter), and it's then smoothed so the head lags.
-    cabinTarget = ground.onRoad ? 0
-      : Math.sin(d * 0.32 + 3) * 0.09 * car.speedFactor * innerHeight;
+    // Your head is on a seat, so it lags whatever the body is doing.
+    cabinTarget = ground.onRoad ? 0 : -heave * 1.9 * innerHeight;
 
     // Suspension compression = how fast the body is being moved by the surface.
     // Past a threshold that's a real hit, so the shocks thud.
-    const comp = Math.abs(bumpY - prevBumpY) / Math.max(dtReal, 1e-4);
+    let comp = 0;
+    for (let i = 0; i < 4; i++) comp = Math.max(comp, Math.abs(road[i] - susY[i]));
     prevBumpY = bumpY;
-    if (comp > 1.4) sound.thud(Math.min(1, (comp - 1.4) / 2.6));
+    if (comp > 0.10) sound.thud(Math.min(1, (comp - 0.10) / 0.22));
   } else {
+    // In the air the wheels hang: springs relax back to neutral, nothing shakes.
+    for (let i = 0; i < 4; i++) {
+      susV[i] += (-susY[i] * 40 - susV[i] * 9) * dtReal;
+      susY[i] += susV[i] * dtReal;
+    }
     prevBumpY = 0;
     cabinTarget = 0;
   }
@@ -406,6 +444,7 @@ $('resetBtn').addEventListener('click', e => { e.stopPropagation(); resetRun(); 
 resetRun();
 if (AUTO) {
   $('start').classList.add('gone');
+  sound.start();          // so headless runs exercise the audio path too
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot
   // can be taken at an exact moment (mid-jump, say) rather than whenever the headless
   // browser happens to get round to it.
