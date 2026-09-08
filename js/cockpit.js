@@ -8,7 +8,9 @@
 // a header rail and you could barely see the road past it — in a feel prototype the
 // road and the rim are the only things that earn screen space.
 
-export const VISUAL_LOCK = Math.PI * 0.80;   // rim rotation at full lock, ~145 degrees
+// Two full rotations lock to lock, like a real rally car: 360 degrees each way from
+// centre. The old 145 degrees made it feel like a go-kart.
+export const VISUAL_LOCK = Math.PI * 2;
 
 export function buildCockpit(THREE) {
   const g = new THREE.Group();

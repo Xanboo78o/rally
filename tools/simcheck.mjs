@@ -55,6 +55,9 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42) {
     const ss = segSpeed[g.seg];
     if (ss) { ss.sum += car.speed; ss.n++; }
 
+    if (car.rolled) {
+      return { ok: false, why: 'ROLLED at ' + Math.round(g.progress) + 'm', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length };
+    }
     if (g.progress >= stage.length - 6) {
       return { ok: true, t, flights, offTime, maxOff, segSpeed, stage, len: stage.length };
     }

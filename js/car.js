@@ -12,8 +12,11 @@ export const CAR = {
   drag: 0.0042,
   rollResist: 0.42,
 
-  maxSteer: 0.62,       // radians of front wheel angle at full lock
-  steerAuthority: 1.05, // how readily steering becomes yaw
+  maxSteer: 0.62,       // radians of front wheel angle at full lock, ~35 degrees
+  wheelbase: 2.55,      // metres. With maxSteer this sets the geometric turning circle.
+  steerAuthority: 1.05, // fudge on top of the geometry
+  maxLatAccel: 9.5,     // m/s^2 the tyres can hold. THIS is what makes slow corners
+                        // sharp and fast ones wide — the old model had neither.
   yawResponse: 7.5,     // how fast yaw rate chases its target
   yawDamp: 3.1,
 
@@ -27,6 +30,11 @@ export const CAR = {
 
   offroadGrip: 0.55,    // grip multiplier off the road
   offroadDrag: 3.4,     // extra drag off the road
+
+  understeerScrub: 2.2, // m/s^2 of speed lost per unit of over-turning
+  leanPerG: 0.038,      // how far the body leans per m/s^2 of cornering load
+  rollTrip: 8.5,        // sideways m/s that tips the car when a wheel digs in off-road
+  rollLanding: 0.90,    // landing severity that puts it on its roof
 
   gravity: 22.5,        // exaggerated, so jumps come down decisively
   airYaw: 1.35,         // how much the wheel can rotate you in mid-air
@@ -46,6 +54,8 @@ export class Car {
     this.landingHit = 0;   // set on touchdown: 0 clean .. 1 disaster
     this.justLanded = false;
     this._dsCool = 0;
+    this.rolled = false;
+    this.rollSpin = 0;
     this.pitch = 0;        // visual only, from suspension + air
     this.roll = 0;
   }
@@ -115,7 +125,21 @@ export class Car {
       this.yawRate += steer * CAR.airYaw * dt * 4;
       this.yawRate *= Math.exp(-1.2 * dt);
     } else {
-      let targetYaw = steer * this.vf * CAR.steerAuthority * 0.055;
+      // Bicycle model: yaw rate = v * tan(steer) / wheelbase. Then cap it by how much
+      // lateral acceleration the tyres can actually hold. That cap is the whole feel —
+      // at 20mph full lock is a genuine hairpin, at 60 the same lock barely bends you.
+      const geometric = (this.vf / CAR.wheelbase) * Math.tan(steer) * CAR.steerAuthority;
+      const gripCap = CAR.maxLatAccel / Math.max(4, Math.abs(this.vf));
+      // Soft saturation, not a hard clamp. A hard cap made half lock and full lock
+      // produce exactly the same corner, which killed most of the wheel's travel.
+      // tanh means more lock always buys a little more rotation, with diminishing returns.
+      const ratio = geometric / gripCap;
+      let targetYaw = gripCap * Math.tanh(ratio);
+      // Past the limit the front washes out: you don't rotate more, you scrub speed and
+      // run wide. That's what stops over-turning being free.
+      const excess = Math.max(0, Math.abs(ratio) - 1);
+      this.vf -= Math.min(excess, 3) * CAR.understeerScrub * dt;
+      // The handbrake lets you exceed what grip alone would allow. That's the point of it.
       targetYaw *= 1 + 1.15 * handbrake;
       if (this._dsFire) {
         this.yawRate += Math.sign(steer || 0.001) * Math.min(1, Math.abs(wheelPos) * 1.4 + 0.25) * CAR.downshiftYaw;
@@ -133,7 +157,7 @@ export class Car {
       const surf = ground.onRoad ? 1 : CAR.offroadGrip;
 
       const push = CAR.power * Math.exp(-CAR.powerFalloff * Math.max(0, this.vf)) * surf;
-      this.vf += push * (1 - handbrake) * dt;
+      if (!this.rolled) this.vf += push * (1 - handbrake) * dt;
       this.vf -= CAR.brakeDrag * this.vf * handbrake * dt;
 
       this.vf -= CAR.drag * this.vf * Math.abs(this.vf) * dt;
@@ -156,8 +180,28 @@ export class Car {
     this.x += (this.vf * s + this.vr * c) * dt;
     this.z += (this.vf * c - this.vr * s) * dt;
 
+    // ---- tipping over --------------------------------------------------------
+    // You can't roll a car with steering alone — grip runs out first. What actually
+    // rolls one is TRIPPING: sliding sideways and having a wheel dig into something.
+    if (!this.rolled) {
+      const trippedOffRoad = !ground.onRoad && Math.abs(this.vr) > CAR.rollTrip && this.speed > 11;
+      if (trippedOffRoad || this.landingHit > CAR.rollLanding) {
+        this.rolled = true;
+        this.rollSpin = Math.sign(this.vr || 1) * 5.5;
+      }
+    } else {
+      this.rollSpin *= Math.exp(-1.1 * dt);
+      this.vf *= Math.exp(-1.9 * dt);
+      this.vr *= Math.exp(-1.9 * dt);
+    }
+
     // ---- body attitude, visual only -----------------------------------------
-    const targetRoll = -this.yawRate * 0.16 - this.vr * 0.006;
+    // Lean is driven by cornering load, so hard corners genuinely feel like they're
+    // about to put you over even though grip caps the real thing.
+    const latAccel = this.vf * this.yawRate;
+    const targetRoll = this.rolled
+      ? this.roll + this.rollSpin * dt
+      : Math.max(-0.5, Math.min(0.5, latAccel * CAR.leanPerG)) - this.vr * 0.004;
     this.roll += (targetRoll - this.roll) * Math.min(1, 9 * dt);
     const targetPitch = this.airborne ? Math.max(-0.22, Math.min(0.22, -this.vy * 0.012)) : 0;
     this.pitch += (targetPitch - this.pitch) * Math.min(1, 7 * dt);

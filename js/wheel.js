@@ -11,27 +11,31 @@
 export const TUNE = {
   // How fast the wheel can travel toward your thumb, in lock-units per second,
   // when the car is stopped and the wheel is centred. 1.0 = centre to full lock.
-  baseRate: 3.4,
+  baseRate: 2.4,
 
   // How much of that rate speed takes away. At speedFactor 1 (top speed) the wheel
   // moves at baseRate / (1 + speedHeavy). Higher = heavier at speed.
-  speedHeavy: 2.6,
+  speedHeavy: 2.2,
 
   // How much of that rate is taken away as the wheel approaches full lock.
-  // 0.75 means at full lock you only have 25% of your turning rate left.
-  lockHeavy: 0.75,
+  // 0.55 means at full lock you still have 45% of your turning rate left — with two
+  // full rotations of travel it only gets "a little" heavier, it shouldn't seize up.
+  lockHeavy: 0.55,
 
   // Self-centring when your thumb is off the wheel, in lock-units per second,
   // plus the extra it gains with speed. A real wheel snaps back harder at speed.
-  returnBase: 1.1,
-  returnSpeed: 4.2,
+  returnBase: 0.75,
+  returnSpeed: 2.4,
 
   // How far around the imaginary rim your thumb sweeps to go centre -> full lock.
-  fullLockSweep: Math.PI * 0.42,   // ~76 degrees of arc
+  // One comfortable thumb sweep is roughly 70-80 degrees, so full lock takes about two
+  // — you shuffle your thumb the way a driver shuffles their hands. Re-gripping mid-corner
+  // doesn't jerk the wheel, so you can wind on more lock without losing what you have.
+  fullLockSweep: Math.PI * 0.80,   // ~144 degrees of arc
 
   // Radius of the imaginary rim in CSS pixels. Your thumb grips the BOTTOM of it,
   // so the hub sits this far above wherever you first touch. Sweep left to go left.
-  rimRadius: 165,
+  rimRadius: 135,
 };
 
 export class Wheel {

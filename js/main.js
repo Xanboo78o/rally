@@ -87,6 +87,7 @@ function resetRun() {
   car.x = s0.x; car.z = s0.z; car.y = s0.y;
   car.yaw = s0.head; car.vf = 0; car.vr = 0; car.vy = 0; car.yawRate = 0;
   car.airborne = false; car.airTime = 0; car.pitch = 0; car.roll = 0;
+  car.rolled = false; car.rollSpin = 0; car.landingHit = 0;
   wheel.pos = 0; wheel.target = 0; wheel.release();
   timer = 0; timing = false; finished = false;
   noteSeg = -1; noteUntil = 0;
@@ -154,6 +155,14 @@ function step(dt) {
       noteSeg = si;
       say(SEGMENTS[si].note);
     } else break;
+  }
+
+  // --- on your roof ---------------------------------------------------------
+  if (car.rolled && !finished) {
+    finished = true; timing = false;
+    $('finishTime').textContent = 'ROLLED';
+    $('finishTag').textContent = '\\o/  you are fine';
+    $('finish').classList.add('show');
   }
 
   // --- timing --------------------------------------------------------------
