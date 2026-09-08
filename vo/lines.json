@@ -1,0 +1,657 @@
+{
+ "cuts": [
+  0,
+  1,
+  2,
+  3,
+  5,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  19,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  38,
+  39,
+  40,
+  41,
+  42,
+  43,
+  44,
+  45,
+  46,
+  47,
+  48,
+  49,
+  50,
+  51,
+  52,
+  53,
+  54,
+  55,
+  56,
+  57,
+  58,
+  59,
+  60,
+  61,
+  62,
+  63,
+  64,
+  65,
+  66,
+  67,
+  68,
+  69,
+  70,
+  72,
+  75,
+  76,
+  77,
+  78,
+  79,
+  80,
+  81,
+  82,
+  83,
+  84,
+  85,
+  86,
+  87,
+  89,
+  91,
+  92,
+  93,
+  94,
+  95,
+  96,
+  98,
+  99,
+  100,
+  101,
+  102,
+  105,
+  106,
+  108,
+  111,
+  113,
+  114,
+  115,
+  116,
+  117,
+  119,
+  121,
+  122,
+  123,
+  124,
+  125,
+  126,
+  127,
+  128,
+  129,
+  131,
+  132,
+  133,
+  135,
+  136,
+  137,
+  140,
+  142,
+  143,
+  146,
+  147,
+  148,
+  149,
+  150,
+  151,
+  153,
+  155,
+  156,
+  157
+ ],
+ "lines": [
+  {
+   "slug": "SLATE",
+   "said": "all right"
+  },
+  {
+   "slug": "left-1",
+   "said": "left one"
+  },
+  {
+   "slug": "left-2",
+   "said": "left two"
+  },
+  {
+   "slug": "left-3",
+   "said": "left three"
+  },
+  {
+   "slug": "left-4",
+   "said": "left four"
+  },
+  {
+   "slug": "left-5",
+   "said": "left five"
+  },
+  {
+   "slug": "left-6",
+   "said": "left six"
+  },
+  {
+   "slug": "right-1",
+   "said": "right one"
+  },
+  {
+   "slug": "right-2",
+   "said": "right two"
+  },
+  {
+   "slug": "right-3",
+   "said": "right three"
+  },
+  {
+   "slug": "right-4",
+   "said": "right four"
+  },
+  {
+   "slug": "right-5",
+   "said": "right five"
+  },
+  {
+   "slug": "right-6",
+   "said": "right six"
+  },
+  {
+   "slug": "hairpin-left",
+   "said": "hairpin left"
+  },
+  {
+   "slug": "hairpin-left",
+   "said": "hairpin left"
+  },
+  {
+   "slug": "hairpin-right",
+   "said": "hairpin right"
+  },
+  {
+   "slug": "hairpin-right",
+   "said": "hairpin right"
+  },
+  {
+   "slug": "long",
+   "said": "long"
+  },
+  {
+   "slug": "short",
+   "said": "short"
+  },
+  {
+   "slug": "tightens",
+   "said": "tightens"
+  },
+  {
+   "slug": "opens",
+   "said": "opens"
+  },
+  {
+   "slug": "tight",
+   "said": "tight"
+  },
+  {
+   "slug": "very-tight",
+   "said": "very tight"
+  },
+  {
+   "slug": "square",
+   "said": "square"
+  },
+  {
+   "slug": "narrow",
+   "said": "narrow"
+  },
+  {
+   "slug": "narrows",
+   "said": "narrows"
+  },
+  {
+   "slug": "flat",
+   "said": "flat"
+  },
+  {
+   "slug": "blind",
+   "said": "blind"
+  },
+  {
+   "slug": "downhill",
+   "said": "downhill"
+  },
+  {
+   "slug": "uphill",
+   "said": "uphill"
+  },
+  {
+   "slug": "climbing",
+   "said": "climbing"
+  },
+  {
+   "slug": "over-crest",
+   "said": "over crest"
+  },
+  {
+   "slug": "dont-cut",
+   "said": "dont cut"
+  },
+  {
+   "slug": "keep-left",
+   "said": "keep left"
+  },
+  {
+   "slug": "keep-right",
+   "said": "keep right"
+  },
+  {
+   "slug": "care",
+   "said": "care"
+  },
+  {
+   "slug": "d-30",
+   "said": "thirty"
+  },
+  {
+   "slug": "d-40",
+   "said": "forty"
+  },
+  {
+   "slug": "d-50",
+   "said": "fifty"
+  },
+  {
+   "slug": "d-60",
+   "said": "sixty"
+  },
+  {
+   "slug": "d-70",
+   "said": "seventy"
+  },
+  {
+   "slug": "d-80",
+   "said": "eighty"
+  },
+  {
+   "slug": "d-90",
+   "said": "ninety"
+  },
+  {
+   "slug": "d-100",
+   "said": "one hundred"
+  },
+  {
+   "slug": "d-120",
+   "said": "one twenty"
+  },
+  {
+   "slug": "d-150",
+   "said": "one fifty"
+  },
+  {
+   "slug": "d-200",
+   "said": "two hundred"
+  },
+  {
+   "slug": "caution",
+   "said": "caution"
+  },
+  {
+   "slug": "caution",
+   "said": "caution"
+  },
+  {
+   "slug": "jump",
+   "said": "jump"
+  },
+  {
+   "slug": "big-jump",
+   "said": "big jump"
+  },
+  {
+   "slug": "crest",
+   "said": "crest"
+  },
+  {
+   "slug": "landing",
+   "said": "landing"
+  },
+  {
+   "slug": "land-straight",
+   "said": "land straight"
+  },
+  {
+   "slug": "bridge",
+   "said": "bridge"
+  },
+  {
+   "slug": "dont-touch-the-edge",
+   "said": "dont touch the edge"
+  },
+  {
+   "slug": "rocks-inside",
+   "said": "rocks on the inside"
+  },
+  {
+   "slug": "tree-inside",
+   "said": "trees on the inside"
+  },
+  {
+   "slug": "walls-both-sides",
+   "said": "walls on both sides"
+  },
+  {
+   "slug": "wall-on-the-left",
+   "said": "wall on the left"
+  },
+  {
+   "slug": "wall-on-the-right",
+   "said": "wall on the right"
+  },
+  {
+   "slug": "over-roots",
+   "said": "over roots"
+  },
+  {
+   "slug": "over-water",
+   "said": "over water"
+  },
+  {
+   "slug": "road-falls-away",
+   "said": "road falls away"
+  },
+  {
+   "slug": "nothing-outside",
+   "said": "nothing on the outside"
+  },
+  {
+   "slug": "dont-drop-a-wheel",
+   "said": "dont drop a wheel"
+  },
+  {
+   "slug": "under-the-arch",
+   "said": "under arch"
+  },
+  {
+   "slug": "narrowest-point",
+   "said": "narrowest point"
+  },
+  {
+   "slug": "bumpy",
+   "said": "bumpy"
+  },
+  {
+   "slug": "dust",
+   "said": "dust"
+  },
+  {
+   "slug": "spikes",
+   "said": "spikes"
+  },
+  {
+   "slug": "someones-been-here",
+   "said": "someones been here"
+  },
+  {
+   "slug": "and",
+   "said": "and"
+  },
+  {
+   "slug": "into",
+   "said": "into"
+  },
+  {
+   "slug": "then",
+   "said": "then"
+  },
+  {
+   "slug": "then-immediately",
+   "said": "then immediately"
+  },
+  {
+   "slug": "flat-out",
+   "said": "flat out"
+  },
+  {
+   "slug": "start-turning-early",
+   "said": "start turning early"
+  },
+  {
+   "slug": "hold-the-handbrake",
+   "said": "hold the handbrake"
+  },
+  {
+   "slug": "handbrake",
+   "said": "handbrake"
+  },
+  {
+   "slug": "handbrake-again",
+   "said": "handbrake again"
+  },
+  {
+   "slug": "flick-down",
+   "said": "flick down"
+  },
+  {
+   "slug": "flick-down-to-rotate",
+   "said": "flick down to rotate"
+  },
+  {
+   "slug": "dont-overturn",
+   "said": "dont overturn"
+  },
+  {
+   "slug": "dont-lift",
+   "said": "dont lift"
+  },
+  {
+   "slug": "keep-the-rhythm",
+   "said": "keep rhythm"
+  },
+  {
+   "slug": "slow-it-down",
+   "said": "slow down"
+  },
+  {
+   "slug": "slow-it-down",
+   "said": "slow down"
+  },
+  {
+   "slug": "count-3",
+   "said": "three"
+  },
+  {
+   "slug": "count-2",
+   "said": "two"
+  },
+  {
+   "slug": "count-1",
+   "said": "one"
+  },
+  {
+   "slug": "count-go",
+   "said": "go"
+  },
+  {
+   "slug": "countdown-full",
+   "said": "three two one go"
+  },
+  {
+   "slug": "stage-start",
+   "said": "stage start"
+  },
+  {
+   "slug": "last-corner",
+   "said": "last corner"
+  },
+  {
+   "slug": "flat-to-finish",
+   "said": "flat to finish"
+  },
+  {
+   "slug": "flat-to-finish",
+   "said": "flat to finish"
+  },
+  {
+   "slug": "stage-end",
+   "said": "stage end"
+  },
+  {
+   "slug": "thats-a-good-one",
+   "said": "thats a good one"
+  },
+  {
+   "slug": "personal-best",
+   "said": "personal best"
+  },
+  {
+   "slug": "weve-lost-time",
+   "said": "weve lost time there"
+  },
+  {
+   "slug": "p-drop-zone",
+   "said": "the drop zone"
+  },
+  {
+   "slug": "p-pines",
+   "said": "the pines"
+  },
+  {
+   "slug": "p-old-road",
+   "said": "the old road"
+  },
+  {
+   "slug": "p-village",
+   "said": "the village"
+  },
+  {
+   "slug": "p-gorge",
+   "said": "the gorge"
+  },
+  {
+   "slug": "p-climb",
+   "said": "the climb"
+  },
+  {
+   "slug": "p-plateau",
+   "said": "the plateau"
+  },
+  {
+   "slug": "p-descent",
+   "said": "the descent"
+  },
+  {
+   "slug": "out-of-the-trees",
+   "said": "out of the trees"
+  },
+  {
+   "slug": "out-of-the-village",
+   "said": "out of the village"
+  },
+  {
+   "slug": "out-of-the-dark",
+   "said": "out of the dark"
+  },
+  {
+   "slug": "over-the-top",
+   "said": "over the top"
+  },
+  {
+   "slug": "hit-small-2",
+   "said": "thats a dent"
+  },
+  {
+   "slug": "hit-medium",
+   "said": "oh no no no no no no no"
+  },
+  {
+   "slug": "puncture",
+   "said": "weve got a puncture"
+  },
+  {
+   "slug": "warning-light",
+   "said": "warning light"
+  },
+  {
+   "slug": "pull-over",
+   "said": "pull over pull over pull over"
+  },
+  {
+   "slug": "tyre-hurry",
+   "said": "faster faster"
+  },
+  {
+   "slug": "crash-big",
+   "said": "ah"
+  },
+  {
+   "slug": "crash-huge",
+   "said": "no no no no no"
+  },
+  {
+   "slug": "rolled",
+   "said": "were upside down again"
+  },
+  {
+   "slug": "you-okay",
+   "said": "you okay"
+  },
+  {
+   "slug": "miracle-landing",
+   "said": "how"
+  },
+  {
+   "slug": "near-miss",
+   "said": "whoa whoa"
+  },
+  {
+   "slug": "still-with-me",
+   "said": "still with me"
+  },
+  {
+   "slug": "youre-in-a-field",
+   "said": "youre in the field"
+  },
+  {
+   "slug": "dont-do-that-again",
+   "said": "dont do that again"
+  },
+  {
+   "slug": "nice",
+   "said": "nice"
+  },
+  {
+   "slug": "big-air-whoop",
+   "said": "woo"
+  }
+ ]
+}

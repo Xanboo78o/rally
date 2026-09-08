@@ -1,0 +1,1172 @@
+[
+ {
+  "slug": "SLATE",
+  "said": "all right",
+  "lo": 0,
+  "hi": 0,
+  "start": 2.21,
+  "end": 2.51,
+  "dur": 0.3
+ },
+ {
+  "slug": "left-1",
+  "said": "left one",
+  "lo": 1,
+  "hi": 1,
+  "start": 3.59,
+  "end": 3.71,
+  "dur": 0.12
+ },
+ {
+  "slug": "left-2",
+  "said": "left two",
+  "lo": 2,
+  "hi": 2,
+  "start": 3.79,
+  "end": 3.99,
+  "dur": 0.2
+ },
+ {
+  "slug": "left-3",
+  "said": "left three",
+  "lo": 3,
+  "hi": 4,
+  "start": 4.53,
+  "end": 5.41,
+  "dur": 0.88
+ },
+ {
+  "slug": "left-4",
+  "said": "left four",
+  "lo": 5,
+  "hi": 6,
+  "start": 5.76,
+  "end": 6.23,
+  "dur": 0.47
+ },
+ {
+  "slug": "left-5",
+  "said": "left five",
+  "lo": 7,
+  "hi": 7,
+  "start": 6.88,
+  "end": 7.09,
+  "dur": 0.21
+ },
+ {
+  "slug": "left-6",
+  "said": "left six",
+  "lo": 8,
+  "hi": 8,
+  "start": 7.8,
+  "end": 7.98,
+  "dur": 0.18
+ },
+ {
+  "slug": "right-1",
+  "said": "right one",
+  "lo": 9,
+  "hi": 9,
+  "start": 8.64,
+  "end": 8.78,
+  "dur": 0.14
+ },
+ {
+  "slug": "right-2",
+  "said": "right two",
+  "lo": 10,
+  "hi": 10,
+  "start": 9.54,
+  "end": 9.71,
+  "dur": 0.17
+ },
+ {
+  "slug": "right-3",
+  "said": "right three",
+  "lo": 11,
+  "hi": 11,
+  "start": 10.34,
+  "end": 10.5,
+  "dur": 0.16
+ },
+ {
+  "slug": "right-4",
+  "said": "right four",
+  "lo": 12,
+  "hi": 12,
+  "start": 11.15,
+  "end": 11.29,
+  "dur": 0.14
+ },
+ {
+  "slug": "right-5",
+  "said": "right five",
+  "lo": 13,
+  "hi": 13,
+  "start": 11.88,
+  "end": 11.99,
+  "dur": 0.11
+ },
+ {
+  "slug": "right-6",
+  "said": "right six",
+  "lo": 14,
+  "hi": 14,
+  "start": 12.58,
+  "end": 12.77,
+  "dur": 0.19
+ },
+ {
+  "slug": "hairpin-left",
+  "said": "hairpin left",
+  "lo": 15,
+  "hi": 15,
+  "start": 13.32,
+  "end": 13.72,
+  "dur": 0.4
+ },
+ {
+  "slug": "hairpin-left",
+  "said": "hairpin left",
+  "lo": 16,
+  "hi": 16,
+  "start": 14.48,
+  "end": 14.66,
+  "dur": 0.18
+ },
+ {
+  "slug": "hairpin-right",
+  "said": "hairpin right",
+  "lo": 17,
+  "hi": 18,
+  "start": 15.52,
+  "end": 15.98,
+  "dur": 0.46
+ },
+ {
+  "slug": "hairpin-right",
+  "said": "hairpin right",
+  "lo": 19,
+  "hi": 20,
+  "start": 16.54,
+  "end": 16.95,
+  "dur": 0.41
+ },
+ {
+  "slug": "long",
+  "said": "long",
+  "lo": 21,
+  "hi": 21,
+  "start": 17.93,
+  "end": 18.15,
+  "dur": 0.22
+ },
+ {
+  "slug": "short",
+  "said": "short",
+  "lo": 22,
+  "hi": 22,
+  "start": 18.52,
+  "end": 18.76,
+  "dur": 0.24
+ },
+ {
+  "slug": "tightens",
+  "said": "tightens",
+  "lo": 23,
+  "hi": 23,
+  "start": 19.18,
+  "end": 19.62,
+  "dur": 0.44
+ },
+ {
+  "slug": "opens",
+  "said": "opens",
+  "lo": 23,
+  "hi": 23,
+  "start": 19.18,
+  "end": 19.62,
+  "dur": 0.44
+ },
+ {
+  "slug": "tight",
+  "said": "tight",
+  "lo": 24,
+  "hi": 24,
+  "start": 20.73,
+  "end": 20.91,
+  "dur": 0.18
+ },
+ {
+  "slug": "very-tight",
+  "said": "very tight",
+  "lo": 25,
+  "hi": 25,
+  "start": 21.21,
+  "end": 21.58,
+  "dur": 0.37
+ },
+ {
+  "slug": "square",
+  "said": "square",
+  "lo": 26,
+  "hi": 26,
+  "start": 22.27,
+  "end": 22.49,
+  "dur": 0.22
+ },
+ {
+  "slug": "narrow",
+  "said": "narrow",
+  "lo": 27,
+  "hi": 27,
+  "start": 22.77,
+  "end": 23.06,
+  "dur": 0.29
+ },
+ {
+  "slug": "narrows",
+  "said": "narrows",
+  "lo": 28,
+  "hi": 28,
+  "start": 23.38,
+  "end": 24.21,
+  "dur": 0.83
+ },
+ {
+  "slug": "flat",
+  "said": "flat",
+  "lo": 29,
+  "hi": 29,
+  "start": 24.46,
+  "end": 24.7,
+  "dur": 0.24
+ },
+ {
+  "slug": "blind",
+  "said": "blind",
+  "lo": 30,
+  "hi": 30,
+  "start": 25.05,
+  "end": 25.22,
+  "dur": 0.17
+ },
+ {
+  "slug": "downhill",
+  "said": "downhill",
+  "lo": 31,
+  "hi": 31,
+  "start": 26.11,
+  "end": 26.45,
+  "dur": 0.34
+ },
+ {
+  "slug": "uphill",
+  "said": "uphill",
+  "lo": 32,
+  "hi": 32,
+  "start": 26.59,
+  "end": 26.83,
+  "dur": 0.24
+ },
+ {
+  "slug": "climbing",
+  "said": "climbing",
+  "lo": 33,
+  "hi": 33,
+  "start": 27.11,
+  "end": 27.37,
+  "dur": 0.26
+ },
+ {
+  "slug": "over-crest",
+  "said": "over crest",
+  "lo": 34,
+  "hi": 34,
+  "start": 27.56,
+  "end": 27.73,
+  "dur": 0.17
+ },
+ {
+  "slug": "dont-cut",
+  "said": "dont cut",
+  "lo": 35,
+  "hi": 35,
+  "start": 28.37,
+  "end": 28.71,
+  "dur": 0.34
+ },
+ {
+  "slug": "keep-left",
+  "said": "keep left",
+  "lo": 35,
+  "hi": 35,
+  "start": 28.37,
+  "end": 28.71,
+  "dur": 0.34
+ },
+ {
+  "slug": "keep-right",
+  "said": "keep right",
+  "lo": 36,
+  "hi": 36,
+  "start": 29.89,
+  "end": 30.03,
+  "dur": 0.14
+ },
+ {
+  "slug": "care",
+  "said": "care",
+  "lo": 37,
+  "hi": 37,
+  "start": 30.78,
+  "end": 30.95,
+  "dur": 0.17
+ },
+ {
+  "slug": "d-30",
+  "said": "thirty",
+  "lo": 37,
+  "hi": 37,
+  "start": 30.78,
+  "end": 30.95,
+  "dur": 0.17
+ },
+ {
+  "slug": "d-40",
+  "said": "forty",
+  "lo": 38,
+  "hi": 39,
+  "start": 32.65,
+  "end": 33.4,
+  "dur": 0.75
+ },
+ {
+  "slug": "d-50",
+  "said": "fifty",
+  "lo": 40,
+  "hi": 40,
+  "start": 33.85,
+  "end": 33.96,
+  "dur": 0.11
+ },
+ {
+  "slug": "d-60",
+  "said": "sixty",
+  "lo": 41,
+  "hi": 41,
+  "start": 34.48,
+  "end": 34.7,
+  "dur": 0.22
+ },
+ {
+  "slug": "d-70",
+  "said": "seventy",
+  "lo": 42,
+  "hi": 42,
+  "start": 35.05,
+  "end": 35.32,
+  "dur": 0.27
+ },
+ {
+  "slug": "d-80",
+  "said": "eighty",
+  "lo": 43,
+  "hi": 43,
+  "start": 35.79,
+  "end": 35.96,
+  "dur": 0.17
+ },
+ {
+  "slug": "d-90",
+  "said": "ninety",
+  "lo": 44,
+  "hi": 44,
+  "start": 36.34,
+  "end": 36.63,
+  "dur": 0.29
+ },
+ {
+  "slug": "d-100",
+  "said": "one hundred",
+  "lo": 45,
+  "hi": 45,
+  "start": 36.97,
+  "end": 37.33,
+  "dur": 0.36
+ },
+ {
+  "slug": "d-120",
+  "said": "one twenty",
+  "lo": 46,
+  "hi": 46,
+  "start": 38.26,
+  "end": 38.7,
+  "dur": 0.44
+ },
+ {
+  "slug": "d-150",
+  "said": "one fifty",
+  "lo": 47,
+  "hi": 47,
+  "start": 39.3,
+  "end": 39.4,
+  "dur": 0.1
+ },
+ {
+  "slug": "d-200",
+  "said": "two hundred",
+  "lo": 48,
+  "hi": 48,
+  "start": 40.24,
+  "end": 40.6,
+  "dur": 0.36
+ },
+ {
+  "slug": "caution",
+  "said": "caution",
+  "lo": 49,
+  "hi": 49,
+  "start": 41.65,
+  "end": 41.91,
+  "dur": 0.26
+ },
+ {
+  "slug": "caution",
+  "said": "caution",
+  "lo": 50,
+  "hi": 50,
+  "start": 42.27,
+  "end": 42.56,
+  "dur": 0.29
+ },
+ {
+  "slug": "jump",
+  "said": "jump",
+  "lo": 51,
+  "hi": 51,
+  "start": 43.49,
+  "end": 43.62,
+  "dur": 0.13
+ },
+ {
+  "slug": "big-jump",
+  "said": "big jump",
+  "lo": 52,
+  "hi": 52,
+  "start": 44.18,
+  "end": 44.49,
+  "dur": 0.31
+ },
+ {
+  "slug": "crest",
+  "said": "crest",
+  "lo": 53,
+  "hi": 53,
+  "start": 47.05,
+  "end": 47.29,
+  "dur": 0.24
+ },
+ {
+  "slug": "landing",
+  "said": "landing",
+  "lo": 54,
+  "hi": 54,
+  "start": 47.64,
+  "end": 47.91,
+  "dur": 0.27
+ },
+ {
+  "slug": "land-straight",
+  "said": "land straight",
+  "lo": 55,
+  "hi": 55,
+  "start": 48.23,
+  "end": 48.6,
+  "dur": 0.37
+ },
+ {
+  "slug": "bridge",
+  "said": "bridge",
+  "lo": 56,
+  "hi": 56,
+  "start": 49.05,
+  "end": 49.28,
+  "dur": 0.23
+ },
+ {
+  "slug": "dont-touch-the-edge",
+  "said": "dont touch the edge",
+  "lo": 57,
+  "hi": 57,
+  "start": 49.65,
+  "end": 50.15,
+  "dur": 0.5
+ },
+ {
+  "slug": "rocks-inside",
+  "said": "rocks on the inside",
+  "lo": 58,
+  "hi": 58,
+  "start": 50.6,
+  "end": 51.23,
+  "dur": 0.63
+ },
+ {
+  "slug": "tree-inside",
+  "said": "trees on the inside",
+  "lo": 59,
+  "hi": 59,
+  "start": 51.56,
+  "end": 52.15,
+  "dur": 0.59
+ },
+ {
+  "slug": "walls-both-sides",
+  "said": "walls on both sides",
+  "lo": 60,
+  "hi": 60,
+  "start": 52.48,
+  "end": 53.05,
+  "dur": 0.57
+ },
+ {
+  "slug": "wall-on-the-left",
+  "said": "wall on the left",
+  "lo": 61,
+  "hi": 61,
+  "start": 53.45,
+  "end": 53.9,
+  "dur": 0.45
+ },
+ {
+  "slug": "wall-on-the-right",
+  "said": "wall on the right",
+  "lo": 62,
+  "hi": 62,
+  "start": 54.31,
+  "end": 54.69,
+  "dur": 0.38
+ },
+ {
+  "slug": "over-roots",
+  "said": "over roots",
+  "lo": 63,
+  "hi": 63,
+  "start": 55.17,
+  "end": 55.54,
+  "dur": 0.37
+ },
+ {
+  "slug": "over-water",
+  "said": "over water",
+  "lo": 64,
+  "hi": 64,
+  "start": 56.07,
+  "end": 56.54,
+  "dur": 0.47
+ },
+ {
+  "slug": "road-falls-away",
+  "said": "road falls away",
+  "lo": 65,
+  "hi": 65,
+  "start": 57.04,
+  "end": 57.61,
+  "dur": 0.57
+ },
+ {
+  "slug": "nothing-outside",
+  "said": "nothing on the outside",
+  "lo": 66,
+  "hi": 67,
+  "start": 58.11,
+  "end": 58.65,
+  "dur": 0.54
+ },
+ {
+  "slug": "dont-drop-a-wheel",
+  "said": "dont drop a wheel",
+  "lo": 68,
+  "hi": 69,
+  "start": 59.2,
+  "end": 59.76,
+  "dur": 0.56
+ },
+ {
+  "slug": "under-the-arch",
+  "said": "under arch",
+  "lo": 70,
+  "hi": 71,
+  "start": 60.27,
+  "end": 60.8,
+  "dur": 0.53
+ },
+ {
+  "slug": "narrowest-point",
+  "said": "narrowest point",
+  "lo": 72,
+  "hi": 74,
+  "start": 61.2,
+  "end": 62.46,
+  "dur": 1.26
+ },
+ {
+  "slug": "bumpy",
+  "said": "bumpy",
+  "lo": 75,
+  "hi": 75,
+  "start": 63.18,
+  "end": 63.38,
+  "dur": 0.2
+ },
+ {
+  "slug": "dust",
+  "said": "dust",
+  "lo": 75,
+  "hi": 75,
+  "start": 63.18,
+  "end": 63.38,
+  "dur": 0.2
+ },
+ {
+  "slug": "spikes",
+  "said": "spikes",
+  "lo": 76,
+  "hi": 76,
+  "start": 64.06,
+  "end": 64.33,
+  "dur": 0.27
+ },
+ {
+  "slug": "someones-been-here",
+  "said": "someones been here",
+  "lo": 77,
+  "hi": 79,
+  "start": 64.73,
+  "end": 66.7,
+  "dur": 1.97
+ },
+ {
+  "slug": "and",
+  "said": "and",
+  "lo": 79,
+  "hi": 79,
+  "start": 66.5,
+  "end": 66.7,
+  "dur": 0.2
+ },
+ {
+  "slug": "into",
+  "said": "into",
+  "lo": 80,
+  "hi": 80,
+  "start": 67.3,
+  "end": 67.61,
+  "dur": 0.31
+ },
+ {
+  "slug": "then",
+  "said": "then",
+  "lo": 81,
+  "hi": 81,
+  "start": 68.13,
+  "end": 68.42,
+  "dur": 0.29
+ },
+ {
+  "slug": "then-immediately",
+  "said": "then immediately",
+  "lo": 82,
+  "hi": 82,
+  "start": 69.05,
+  "end": 69.69,
+  "dur": 0.64
+ },
+ {
+  "slug": "flat-out",
+  "said": "flat out",
+  "lo": 83,
+  "hi": 83,
+  "start": 71.46,
+  "end": 71.85,
+  "dur": 0.39
+ },
+ {
+  "slug": "start-turning-early",
+  "said": "start turning early",
+  "lo": 84,
+  "hi": 84,
+  "start": 72.61,
+  "end": 73.39,
+  "dur": 0.78
+ },
+ {
+  "slug": "hold-the-handbrake",
+  "said": "hold the handbrake",
+  "lo": 85,
+  "hi": 85,
+  "start": 74.43,
+  "end": 74.97,
+  "dur": 0.54
+ },
+ {
+  "slug": "handbrake",
+  "said": "handbrake",
+  "lo": 86,
+  "hi": 86,
+  "start": 75.41,
+  "end": 75.7,
+  "dur": 0.29
+ },
+ {
+  "slug": "handbrake-again",
+  "said": "handbrake again",
+  "lo": 87,
+  "hi": 88,
+  "start": 76.16,
+  "end": 77.81,
+  "dur": 1.65
+ },
+ {
+  "slug": "flick-down",
+  "said": "flick down",
+  "lo": 89,
+  "hi": 90,
+  "start": 77.93,
+  "end": 78.83,
+  "dur": 0.9
+ },
+ {
+  "slug": "flick-down-to-rotate",
+  "said": "flick down to rotate",
+  "lo": 91,
+  "hi": 91,
+  "start": 78.9,
+  "end": 79.48,
+  "dur": 0.58
+ },
+ {
+  "slug": "dont-overturn",
+  "said": "dont overturn",
+  "lo": 92,
+  "hi": 92,
+  "start": 80.18,
+  "end": 80.72,
+  "dur": 0.54
+ },
+ {
+  "slug": "dont-lift",
+  "said": "dont lift",
+  "lo": 93,
+  "hi": 93,
+  "start": 81.01,
+  "end": 81.25,
+  "dur": 0.24
+ },
+ {
+  "slug": "keep-the-rhythm",
+  "said": "keep rhythm",
+  "lo": 94,
+  "hi": 94,
+  "start": 81.59,
+  "end": 81.96,
+  "dur": 0.37
+ },
+ {
+  "slug": "slow-it-down",
+  "said": "slow down",
+  "lo": 95,
+  "hi": 95,
+  "start": 82.35,
+  "end": 82.71,
+  "dur": 0.36
+ },
+ {
+  "slug": "slow-it-down",
+  "said": "slow down",
+  "lo": 96,
+  "hi": 97,
+  "start": 83.03,
+  "end": 83.71,
+  "dur": 0.68
+ },
+ {
+  "slug": "count-3",
+  "said": "three",
+  "lo": 98,
+  "hi": 98,
+  "start": 84.98,
+  "end": 85.16,
+  "dur": 0.18
+ },
+ {
+  "slug": "count-2",
+  "said": "two",
+  "lo": 99,
+  "hi": 99,
+  "start": 86.21,
+  "end": 86.42,
+  "dur": 0.21
+ },
+ {
+  "slug": "count-1",
+  "said": "one",
+  "lo": 100,
+  "hi": 100,
+  "start": 87.39,
+  "end": 87.58,
+  "dur": 0.19
+ },
+ {
+  "slug": "count-go",
+  "said": "go",
+  "lo": 101,
+  "hi": 101,
+  "start": 88.25,
+  "end": 88.36,
+  "dur": 0.11
+ },
+ {
+  "slug": "countdown-full",
+  "said": "three two one go",
+  "lo": 102,
+  "hi": 105,
+  "start": 89.93,
+  "end": 94.53,
+  "dur": 4.6
+ },
+ {
+  "slug": "stage-start",
+  "said": "stage start",
+  "lo": 105,
+  "hi": 105,
+  "start": 94.42,
+  "end": 94.53,
+  "dur": 0.11
+ },
+ {
+  "slug": "last-corner",
+  "said": "last corner",
+  "lo": 106,
+  "hi": 107,
+  "start": 95.88,
+  "end": 96.44,
+  "dur": 0.56
+ },
+ {
+  "slug": "flat-to-finish",
+  "said": "flat to finish",
+  "lo": 108,
+  "hi": 110,
+  "start": 96.82,
+  "end": 98.27,
+  "dur": 1.45
+ },
+ {
+  "slug": "flat-to-finish",
+  "said": "flat to finish",
+  "lo": 111,
+  "hi": 112,
+  "start": 98.47,
+  "end": 99.1,
+  "dur": 0.63
+ },
+ {
+  "slug": "stage-end",
+  "said": "stage end",
+  "lo": 113,
+  "hi": 113,
+  "start": 99.64,
+  "end": 100.24,
+  "dur": 0.6
+ },
+ {
+  "slug": "thats-a-good-one",
+  "said": "thats a good one",
+  "lo": 114,
+  "hi": 114,
+  "start": 100.48,
+  "end": 100.94,
+  "dur": 0.46
+ },
+ {
+  "slug": "personal-best",
+  "said": "personal best",
+  "lo": 115,
+  "hi": 115,
+  "start": 101.2,
+  "end": 101.81,
+  "dur": 0.61
+ },
+ {
+  "slug": "weve-lost-time",
+  "said": "weve lost time there",
+  "lo": 116,
+  "hi": 116,
+  "start": 102.22,
+  "end": 102.92,
+  "dur": 0.7
+ },
+ {
+  "slug": "p-drop-zone",
+  "said": "the drop zone",
+  "lo": 117,
+  "hi": 118,
+  "start": 107.49,
+  "end": 108.13,
+  "dur": 0.64
+ },
+ {
+  "slug": "p-pines",
+  "said": "the pines",
+  "lo": 119,
+  "hi": 120,
+  "start": 108.51,
+  "end": 109.08,
+  "dur": 0.57
+ },
+ {
+  "slug": "p-old-road",
+  "said": "the old road",
+  "lo": 121,
+  "hi": 121,
+  "start": 109.35,
+  "end": 109.84,
+  "dur": 0.49
+ },
+ {
+  "slug": "p-village",
+  "said": "the village",
+  "lo": 122,
+  "hi": 122,
+  "start": 110.16,
+  "end": 110.66,
+  "dur": 0.5
+ },
+ {
+  "slug": "p-gorge",
+  "said": "the gorge",
+  "lo": 123,
+  "hi": 123,
+  "start": 110.99,
+  "end": 111.31,
+  "dur": 0.32
+ },
+ {
+  "slug": "p-climb",
+  "said": "the climb",
+  "lo": 124,
+  "hi": 124,
+  "start": 111.91,
+  "end": 112.09,
+  "dur": 0.18
+ },
+ {
+  "slug": "p-plateau",
+  "said": "the plateau",
+  "lo": 125,
+  "hi": 125,
+  "start": 112.53,
+  "end": 113.04,
+  "dur": 0.51
+ },
+ {
+  "slug": "p-descent",
+  "said": "the descent",
+  "lo": 126,
+  "hi": 126,
+  "start": 113.32,
+  "end": 113.67,
+  "dur": 0.35
+ },
+ {
+  "slug": "out-of-the-trees",
+  "said": "out of the trees",
+  "lo": 127,
+  "hi": 127,
+  "start": 114.2,
+  "end": 114.67,
+  "dur": 0.47
+ },
+ {
+  "slug": "out-of-the-village",
+  "said": "out of the village",
+  "lo": 128,
+  "hi": 128,
+  "start": 115.01,
+  "end": 115.57,
+  "dur": 0.56
+ },
+ {
+  "slug": "out-of-the-dark",
+  "said": "out of the dark",
+  "lo": 129,
+  "hi": 129,
+  "start": 115.78,
+  "end": 116.21,
+  "dur": 0.43
+ },
+ {
+  "slug": "over-the-top",
+  "said": "over the top",
+  "lo": 131,
+  "hi": 131,
+  "start": 117.93,
+  "end": 118.08,
+  "dur": 0.15
+ },
+ {
+  "slug": "hit-small-2",
+  "said": "thats a dent",
+  "lo": 132,
+  "hi": 132,
+  "start": 119.09,
+  "end": 119.5,
+  "dur": 0.41
+ },
+ {
+  "slug": "hit-medium",
+  "said": "oh no no no no no no no",
+  "lo": 133,
+  "hi": 134,
+  "start": 120.04,
+  "end": 122.6,
+  "dur": 2.56
+ },
+ {
+  "slug": "puncture",
+  "said": "weve got a puncture",
+  "lo": 135,
+  "hi": 135,
+  "start": 122.68,
+  "end": 122.98,
+  "dur": 0.3
+ },
+ {
+  "slug": "warning-light",
+  "said": "warning light",
+  "lo": 136,
+  "hi": 136,
+  "start": 123.3,
+  "end": 123.59,
+  "dur": 0.29
+ },
+ {
+  "slug": "pull-over",
+  "said": "pull over pull over pull over",
+  "lo": 137,
+  "hi": 139,
+  "start": 123.81,
+  "end": 125.1,
+  "dur": 1.29
+ },
+ {
+  "slug": "tyre-hurry",
+  "said": "faster faster",
+  "lo": 140,
+  "hi": 141,
+  "start": 125.79,
+  "end": 126.5,
+  "dur": 0.71
+ },
+ {
+  "slug": "crash-big",
+  "said": "ah",
+  "lo": 142,
+  "hi": 142,
+  "start": 126.85,
+  "end": 127.54,
+  "dur": 0.69
+ },
+ {
+  "slug": "crash-huge",
+  "said": "no no no no no",
+  "lo": 143,
+  "hi": 145,
+  "start": 129.12,
+  "end": 132.26,
+  "dur": 3.14
+ },
+ {
+  "slug": "rolled",
+  "said": "were upside down again",
+  "lo": 146,
+  "hi": 146,
+  "start": 133.08,
+  "end": 133.87,
+  "dur": 0.79
+ },
+ {
+  "slug": "you-okay",
+  "said": "you okay",
+  "lo": 147,
+  "hi": 147,
+  "start": 134.64,
+  "end": 135.15,
+  "dur": 0.51
+ },
+ {
+  "slug": "miracle-landing",
+  "said": "how",
+  "lo": 147,
+  "hi": 147,
+  "start": 134.64,
+  "end": 135.15,
+  "dur": 0.51
+ },
+ {
+  "slug": "near-miss",
+  "said": "whoa whoa",
+  "lo": 148,
+  "hi": 148,
+  "start": 136.35,
+  "end": 136.79,
+  "dur": 0.44
+ },
+ {
+  "slug": "still-with-me",
+  "said": "still with me",
+  "lo": 149,
+  "hi": 149,
+  "start": 137.35,
+  "end": 137.57,
+  "dur": 0.22
+ },
+ {
+  "slug": "youre-in-a-field",
+  "said": "youre in the field",
+  "lo": 151,
+  "hi": 152,
+  "start": 139.24,
+  "end": 139.8,
+  "dur": 0.56
+ },
+ {
+  "slug": "dont-do-that-again",
+  "said": "dont do that again",
+  "lo": 153,
+  "hi": 154,
+  "start": 140.1,
+  "end": 141.32,
+  "dur": 1.22
+ },
+ {
+  "slug": "nice",
+  "said": "nice",
+  "lo": 155,
+  "hi": 156,
+  "start": 141.79,
+  "end": 142.75,
+  "dur": 0.96
+ },
+ {
+  "slug": "big-air-whoop",
+  "said": "woo",
+  "lo": 156,
+  "hi": 156,
+  "start": 142.35,
+  "end": 142.75,
+  "dur": 0.4
+ }
+]
