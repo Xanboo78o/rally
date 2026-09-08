@@ -143,6 +143,32 @@ function crossings(minGapM = 260, tooCloseM = 45, sameHeightM = 12) {
   return { folds, stacks };
 }
 const cross = crossings();
+// ---- is the ground one continuous surface? ------------------------------------
+// The hillside is extruded sideways from the road, so wherever the road turns tighter
+// than the hillside is wide, the inside of the corner folds back THROUGH itself, and
+// overlapping coplanar ground z-fights and flickers the moment the camera moves. It is
+// invisible in a screenshot and obvious in motion, which is exactly the kind of thing
+// that needs a number rather than an eye.
+{
+  const S = stage.samples, K = 5, VERGE = 13;
+  let folded = 0, worstOver = 0, maxStep = 0, minSpan = Infinity, maxSpan = 0;
+  for (let i = K; i < S.length - K; i++) {
+    const a = S[i - K], b = S[i + K];
+    const dh = Math.atan2(Math.sin(b.head - a.head), Math.cos(b.head - a.head));
+    const R = Math.abs(dh) < 1e-6 ? Infinity : Math.abs((b.dist - a.dist) / dh);
+    const reach = S[i].w + VERGE + S[i].span;
+    if (R < reach) { folded++; worstOver = Math.max(worstOver, reach - R); }
+    maxStep = Math.max(maxStep, Math.abs(S[i].span - S[i - 1].span));
+    minSpan = Math.min(minSpan, S[i].span);
+    maxSpan = Math.max(maxSpan, S[i].span);
+  }
+  console.log('\nground');
+  console.log('  hillside width   ' + minSpan.toFixed(0) + 'm .. ' + maxSpan.toFixed(0) + 'm');
+  console.log('  widest step between samples 2m apart  ' + maxStep.toFixed(2) + 'm');
+  console.log('  folds  ' + folded + ' samples, worst overlap ' + worstOver.toFixed(2) + 'm');
+  global.__ground = { folded, worstOver, maxStep };
+}
+
 console.log('\nself-intersection');
 if (!cross.folds.length) console.log('  no folds — nothing runs back over itself at the same height');
 else {
@@ -172,3 +198,7 @@ const offPct = r.offTime / r.t * 100;
 console.log('  stays on road   ', offPct < 10 ? 'pass (' + offPct.toFixed(1) + '% of the run)' : 'loose (' + offPct.toFixed(1) + '%)');
 console.log('  pace varies     ', varied > 25 ? 'pass (' + varied.toFixed(0) + ' mph spread)' : 'FLAT (' + varied.toFixed(0) + ' mph spread)');
 console.log('  road never folds', cross.folds.length ? 'FAIL (' + cross.folds.length + ' folds)' : 'pass');
+const G = global.__ground;
+// A metre of overlap is narrower than the car, tucked inside the tightest hairpins.
+console.log('  ground is one surface', G.worstOver < 2 ? 'pass' : 'FAIL (overlaps by ' + G.worstOver.toFixed(1) + 'm)');
+console.log('  hillside has no crease', G.maxStep <= 0.5 ? 'pass' : 'FAIL (' + G.maxStep.toFixed(2) + 'm step)');

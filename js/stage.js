@@ -164,12 +164,39 @@ export const SEGMENTS = [
 
 const STEP = 2.0;           // centreline sample spacing, metres
 const VERGE = 13;           // how far the shaped ground extends past the road edge
-// Beyond the verge the hillside keeps falling, all the way to a valley floor under the
-// whole stage. This stage climbs 114m, so a single flat ground plane no longer works:
-// on the plateau the road would hang in the air with the world 120m below it. The skirt
-// is what closes that gap, and it's why you can see down off the side of the mountain.
-const SKIRT = 110;          // how far out the hillside runs before the valley floor
+const SKIRT = 200;          // how far out the hillside can run before the valley floor
+const MIN_SPAN = 5;         // ...and how little it may run to, inside a hairpin
 const FLOOR_BELOW = 6;      // how far the valley floor sits under the lowest road
+
+const EDGE_DROP = 2.6;      // how far the ground has fallen by the time the verge levels
+const EDGE_SLOPE = 0.30;
+const DROP_END = EDGE_DROP / EDGE_SLOPE;   // 8.67m out, where that fall stops
+
+// How the hillside gets from the verge down to the valley floor, as
+// [fraction of the way out, fraction of the drop taken]. Gentle first: a hillside that
+// takes most of its drop immediately reads as the edge of a TABLE, which is exactly what
+// "i can see where the terrain ends" was. Easing it out turns the same drop into ground
+// receding into haze.
+const SKIRT_KNOTS = [[0, 0], [0.30, 0.25], [0.65, 0.60], [1, 1]];
+
+// THE GROUND, in one function, used by both the physics in sample() and the mesh built
+// below. It has to be one function: they were two, and they disagreed — the mesh drew a
+// single flat plate 2.6m under everything while the road ribbon sat on top of nothing,
+// so the road visibly hung 2.6m in the air for the whole stage.
+export function groundProfile(y, off, floorY, span = SKIRT) {
+  if (off <= 0) return y;                                  // on the road
+  if (off <= DROP_END) return y - off * EDGE_SLOPE;        // the verge falling away
+  const edge = y - EDGE_DROP;
+  if (off <= VERGE) return edge;                           // the level shelf
+  const total = edge - floorY;
+  if (total <= 0) return edge;
+  const t = Math.min(1, (off - VERGE) / Math.max(1, span));
+  for (let i = 1; i < SKIRT_KNOTS.length; i++) {
+    const [t0, f0] = SKIRT_KNOTS[i - 1], [t1, f1] = SKIRT_KNOTS[i];
+    if (t <= t1) return edge - total * (f0 + (f1 - f0) * (t - t0) / (t1 - t0));
+  }
+  return floorY;
+}
 
 export class Stage {
   constructor() {
@@ -177,6 +204,10 @@ export class Stage {
     this._build();
     this.length = this.samples[this.samples.length - 1].dist;
     this.sections = this._sections();
+    let minY = Infinity;
+    for (const s of this.samples) minY = Math.min(minY, s.y);
+    this.floorY = minY - FLOOR_BELOW;
+    this._spans();
     this._hint = 0;
   }
 
@@ -217,6 +248,53 @@ export class Stage {
       else out.push({ key, start, end });
     });
     return out;
+  }
+
+  // How far the hillside is allowed to reach out at each point.
+  //
+  // The skirt is extruded sideways from the road, so wherever the road turns tighter
+  // than the skirt is wide, the inside of the corner folds back THROUGH itself — half
+  // this stage did that, and overlapping coplanar ground z-fights and flickers as soon
+  // as the camera moves. So the terrain narrows into a corner and opens out again on
+  // the straights. It has to be smoothed hard: a width that jumps between neighbouring
+  // samples puts a crease down the hillside, which is its own kind of seam.
+  _spans() {
+    const S = this.samples, n = S.length, K = 5;
+
+    // How wide the hillside COULD be here without folding: a safe fraction of the local
+    // turning radius.
+    const raw = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = S[Math.max(0, i - K)], b = S[Math.min(n - 1, i + K)];
+      const dh = Math.atan2(Math.sin(b.head - a.head), Math.cos(b.head - a.head));
+      const arc = b.dist - a.dist;
+      const R = Math.abs(dh) < 1e-6 ? Infinity : Math.abs(arc / dh);
+      // The hillside reaches w + VERGE + span from the centreline, so the ROAD's own
+      // half-width has to come out of the budget too — leaving it out is what kept 4%
+      // of the tightest hairpins folding.
+      raw[i] = Math.max(MIN_SPAN, Math.min(SKIRT, R * 0.75 - VERGE - S[i].w));
+    }
+
+    // Take the tightest value in a window, so the ground has already pulled in by the
+    // time the corner arrives instead of clipping as it gets there.
+    const W = 40;
+    const limit = new Array(n);
+    for (let i = 0; i < n; i++) {
+      let m = Infinity;
+      for (let j = Math.max(0, i - W); j <= Math.min(n - 1, i + W); j++) m = Math.min(m, raw[j]);
+      limit[i] = m;
+    }
+
+    // Then a SLOPE LIMITER rather than a blur. Blurring a min-filtered signal pushes it
+    // back up above the limit — which is how 7% of the stage was still folding — and it
+    // still left 3.6m steps between neighbouring samples, i.e. a crease down the hill.
+    // Two sweeps of "no faster than RATE" give the widest terrain that is under the
+    // limit everywhere AND never changes faster than the eye reads as a fold.
+    const RATE = 0.45;                       // metres of width per 2m of road
+    const span = limit.slice();
+    for (let i = 1; i < n; i++) span[i] = Math.min(span[i], span[i - 1] + RATE);
+    for (let i = n - 2; i >= 0; i--) span[i] = Math.min(span[i], span[i + 1] + RATE);
+    for (let i = 0; i < n; i++) S[i].span = span[i];
   }
 
   sectionAt(dist) {
@@ -262,6 +340,7 @@ export class Stage {
     const t = Math.min(1, Math.abs(along) / STEP);
     const baseY = s.y + (n.y - s.y) * t;
     const w = s.w + (n.w - s.w) * t;
+    const span = s.span + (n.span - s.span) * t;
     const off = Math.abs(lateral) - w;
 
     // Gradient of the road in the direction of travel. It MUST be the gradient of
@@ -270,11 +349,9 @@ export class Stage {
     // gets glued down while the ground is still rising under it.
     const slope = (along >= 0 ? (n.y - s.y) : (s.y - n.y)) / STEP;
 
-    let height = baseY;
-    if (off > 0) {
-      // The verge falls away from the road edge, so going off drops you into it.
-      height = baseY - Math.min(2.6, off * 0.30);
-    }
+    // The same curve the mesh is built from, so what you can see is what you land on —
+    // including off the side of the mountain, where the ground now keeps going down.
+    const height = groundProfile(baseY, off, this.floorY, span);
     return {
       height,
       slope,
@@ -341,15 +418,17 @@ export function buildStageMesh(THREE, stage) {
 
   // The valley floor: one plane under the entire stage, at the lowest point it reaches.
   // The skirt below runs down to meet it, so there is never a hole and never a lip.
-  let minY = Infinity, cx = 0, cz = 0;
-  for (const s of S) { minY = Math.min(minY, s.y); cx += s.x; cz += s.z; }
-  const FLOOR = minY - FLOOR_BELOW;
+  let cx = 0, cz = 0;
+  for (const s of S) { cx += s.x; cz += s.z; }
+  const FLOOR = stage.floorY;
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(12000, 12000),
     new THREE.MeshLambertMaterial({ color: 0x55603f })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set(cx / S.length, FLOOR - 0.4, cz / S.length);
+  // 5cm, not 40cm: the skirt runs down to exactly FLOOR, so any bigger gap is a step
+  // you can see all the way round the horizon.
+  ground.position.set(cx / S.length, FLOOR - 0.05, cz / S.length);
   group.add(ground);
 
   // The ribbons carry a real per-vertex colour attribute, so they want vertexColors.
@@ -359,6 +438,12 @@ export function buildStageMesh(THREE, stage) {
   // and every tree, wall and stone renders pure black.
   const roadMat = new THREE.MeshLambertMaterial({ vertexColors: true });
   const propMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  // Ruts and scars lie a couple of centimetres over the road, which is far below the
+  // depth buffer's resolution a few hundred metres out. polygonOffset is the fix for
+  // coplanar decals — without it they shimmer in and out at distance.
+  const decalMat = new THREE.MeshLambertMaterial({
+    vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+  });
 
   // Geometry shared by every chunk's instanced props.
   const treeGeo = new THREE.ConeGeometry(1, 1, 6);         // unit cone, scaled per instance
@@ -380,52 +465,45 @@ export function buildStageMesh(THREE, stage) {
 
     // --- ribbons: road, verge, ruts, scars ---------------------------------
     const strip = () => ({ pos: [], col: [], idx: [] });
-    const road = strip(), verge = strip(), skirt = strip(), rut = strip(), scar = strip();
+    const land = strip(), rut = strip(), scar = strip();
 
     const push = (t, x, y, z, rgb) => {
       t.pos.push(x, y, z);
       t.col.push(rgb[0], rgb[1], rgb[2]);
     };
+    const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
+    // ONE continuous surface, road included, from the valley floor on one side to the
+    // valley floor on the other. Fourteen points across, and the only reason it isn't
+    // twelve is that the road edge needs a hard colour break: ±w appears twice, once
+    // verge-coloured and once road-coloured, so the tarmac has a crisp edge without a
+    // second overlapping ribbon that would z-fight with the ground at distance.
+    const BANDS = [0, 1, 2, 3, 4, 6, 8, 9, 10, 11, 12];   // 5->6 and 7->8 are the seams
     for (let i = c0; i <= c1; i++) {
       const s = S[i], p = pal[i];
       const rx = Math.cos(s.head), rz = -Math.sin(s.head);
-      const cr = hex(p.road), cv = hex(p.verge);
-
-      push(road, s.x - rx * s.w, s.y + 0.02, s.z - rz * s.w, cr);
-      push(road, s.x + rx * s.w, s.y + 0.02, s.z + rz * s.w, cr);
-
-      const vw = s.w + VERGE;
-      const drop = Math.min(2.6, VERGE * 0.30);
-      push(verge, s.x - rx * vw, s.y - drop, s.z - rz * vw, cv);
-      push(verge, s.x + rx * vw, s.y - drop, s.z + rz * vw, cv);
-
-      // The hillside, from the verge edge down to the valley floor. THREE rings, and
-      // the middle one only takes 15% of the drop across 30% of the run, so the ground
-      // banks away gently first and only then falls off properly — a small excursion
-      // should look like a bank, not the edge of a table.
-      const cf = hex(p.floor);
-      const vergeY = s.y - drop;
-      const midY = vergeY - (vergeY - FLOOR) * 0.15;
-      const rings = [[vw, vergeY], [vw + SKIRT * 0.30, midY], [vw + SKIRT, FLOOR]];
-      for (const [wOut, yOut] of rings) {
-        push(skirt, s.x - rx * wOut, yOut, s.z - rz * wOut, cf);
-        push(skirt, s.x + rx * wOut, yOut, s.z + rz * wOut, cf);
+      const cRoad = hex(p.road), cVerge = hex(p.verge), cFloor = hex(p.floor);
+      const cNear = mix(cVerge, cFloor, 0.35), cFar = mix(cVerge, cFloor, 0.75);
+      const w = s.w, V = w + VERGE, K = s.span;
+      const cross = [
+        [-(V + K), cFloor], [-(V + K * 0.65), cFar], [-(V + K * 0.30), cNear],
+        [-V, cVerge], [-(w + DROP_END), cVerge], [-w, cVerge],
+        [-w, cRoad], [w, cRoad],
+        [w, cVerge], [w + DROP_END, cVerge], [V, cVerge],
+        [V + K * 0.30, cNear], [V + K * 0.65, cFar], [V + K, cFloor],
+      ];
+      for (const [lat, rgb] of cross) {
+        const y = groundProfile(s.y, Math.abs(lat) - w, FLOOR, K);
+        push(land, s.x + rx * lat, y, s.z + rz * lat, rgb);
       }
 
       if (i > c0) {
-        const k = i - c0;
-        const a = (k - 1) * 2, b = a + 1, cc = k * 2, d = cc + 1;
-        road.idx.push(a, cc, b, b, cc, d);
-        verge.idx.push(a, cc, b, b, cc, d);
-        // Six skirt vertices per sample — verge/mid/floor ring, left and right — laid
-        // out as [Lv Rv Lm Rm Lf Rf]. Four bands: each side's verge->mid and mid->floor.
-        // The pairs are ordered so every quad winds the same way the road does (the
-        // left side runs "outward" in -r, so its outer vertex comes first), otherwise
-        // half the hillside faces down and is lit from underneath.
-        const q0 = (k - 1) * 6, q1 = k * 6;
-        for (const [u, v] of [[2, 0], [4, 2], [1, 3], [3, 5]]) {
-          skirt.idx.push(q0 + u, q1 + u, q0 + v, q0 + v, q1 + u, q1 + v);
+        const k = i - c0, q0 = (k - 1) * 14, q1 = k * 14;
+        // Offsets run monotonically in +r, so this is the same winding as the old road
+        // strip — get it backwards and half the hillside is lit from underneath.
+        for (const u of BANDS) {
+          const v = u + 1;
+          land.idx.push(q0 + u, q1 + u, q0 + v, q0 + v, q1 + u, q1 + v);
         }
       }
     }
@@ -441,8 +519,8 @@ export function buildStageMesh(THREE, stage) {
           const s = S[i + k];
           const rx = Math.cos(s.head), rz = -Math.sin(s.head);
           const a0 = RUT_OFF * side - RUT_W, a1 = RUT_OFF * side + RUT_W;
-          push(rut, s.x + rx * a0, s.y + 0.035, s.z + rz * a0, cRut);
-          push(rut, s.x + rx * a1, s.y + 0.035, s.z + rz * a1, cRut);
+          push(rut, s.x + rx * a0, s.y + 0.02, s.z + rz * a0, cRut);
+          push(rut, s.x + rx * a1, s.y + 0.02, s.z + rz * a1, cRut);
         }
         const b = rq * 6;
         rut.idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
@@ -462,23 +540,23 @@ export function buildStageMesh(THREE, stage) {
       const r1x = Math.cos(s1.head), r1z = -Math.sin(s1.head);
       const off = ((j % 11) - 5) * 0.42;                  // wander across the road
       const half = 0.9 + (j % 5) * 0.45;
-      push(scar, s0.x + r0x * (off - half), s0.y + 0.045, s0.z + r0z * (off - half), cS);
-      push(scar, s0.x + r0x * (off + half), s0.y + 0.045, s0.z + r0z * (off + half), cS);
-      push(scar, s1.x + r1x * (off - half), s1.y + 0.045, s1.z + r1z * (off - half), cS);
-      push(scar, s1.x + r1x * (off + half), s1.y + 0.045, s1.z + r1z * (off + half), cS);
+      push(scar, s0.x + r0x * (off - half), s0.y + 0.03, s0.z + r0z * (off - half), cS);
+      push(scar, s0.x + r0x * (off + half), s0.y + 0.03, s0.z + r0z * (off + half), cS);
+      push(scar, s1.x + r1x * (off - half), s1.y + 0.03, s1.z + r1z * (off - half), cS);
+      push(scar, s1.x + r1x * (off + half), s1.y + 0.03, s1.z + r1z * (off + half), cS);
       const b = sc * 4;
       scar.idx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
       sc++;
     }
 
-    for (const t of [skirt, verge, road, rut, scar]) {
+    for (const [t, mat] of [[land, roadMat], [rut, decalMat], [scar, decalMat]]) {
       if (!t.idx.length) continue;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(t.pos, 3));
       g.setAttribute('color', new THREE.Float32BufferAttribute(t.col, 3));
       g.setIndex(t.idx);
       g.computeVertexNormals();
-      chunk.add(new THREE.Mesh(g, roadMat));
+      chunk.add(new THREE.Mesh(g, mat));
     }
 
     // --- props ---------------------------------------------------------------
@@ -489,12 +567,18 @@ export function buildStageMesh(THREE, stage) {
       const s = S[i], p = pal[i];
       const P = PROPS[stage.sectionAt(s.dist)] || PROPS.dawn;
       const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+      // Where the ground actually IS at a given distance out. Everything below stands
+      // on this. Previously every prop was pinned to ROAD level and ignored the verge
+      // falling away, so posts hovered 19cm up, stones 55cm, trees 60cm and the ruins
+      // monoliths a clear 1.1m — while the near pines were buried to the branches.
+      const gy = d => groundProfile(s.y, d - s.w, FLOOR, s.span);
 
       // edge posts, so you can read where the road goes in first person
       if (i % 4 === 0) {
         for (const side of [-1, 1]) {
-          jobs.post.push({ x: s.x + rx * (s.w + 0.7) * side, y: s.y + 0.55,
-                           z: s.z + rz * (s.w + 0.7) * side, c: p.post });
+          const d = s.w + 0.7;
+          jobs.post.push({ x: s.x + rx * d * side, y: gy(d) + 0.52,
+                           z: s.z + rz * d * side, c: p.post });
         }
       }
 
@@ -504,13 +588,16 @@ export function buildStageMesh(THREE, stage) {
         for (let k = 0; k < (P.tuft || 3); k++) {
           const j = (i * 31 + k * 17 + (side > 0 ? 13 : 0)) % 19;
           const d = s.w + 0.35 + k * 0.75 + j * 0.09;
-          jobs.tuft.push({ x: s.x + rx * d * side, y: s.y - 0.12 - (j % 4) * 0.03,
+          // Cone origin is its centre, so half the height puts the base on the ground;
+          // a few centimetres lower and it grows OUT of the dirt rather than resting on
+          // it, which is the difference between grass and a traffic cone.
+          jobs.tuft.push({ x: s.x + rx * d * side, y: gy(d) + 0.225 - (j % 4) * 0.03,
                            z: s.z + rz * d * side, c: p.tuft });
         }
         for (let k = 0; k < (P.stone || 2); k++) {
           const j = (i * 53 + k * 23 + (side > 0 ? 29 : 7)) % 23;
           const d = s.w + 0.25 + j * 0.11;
-          jobs.stone.push({ x: s.x + rx * d * side, y: s.y - 0.05 - (j % 3) * 0.02,
+          jobs.stone.push({ x: s.x + rx * d * side, y: gy(d) + 0.06 - (j % 3) * 0.02,
                             z: s.z + rz * d * side, c: p.stone });
         }
       }
@@ -521,7 +608,7 @@ export function buildStageMesh(THREE, stage) {
           const t = j / 17;
           const d = s.w + P.tree.near + t * (P.tree.far - P.tree.near);
           const h = P.tree.h * (0.72 + (j % 5) * 0.13);
-          jobs.tree.push({ x: s.x + rx * d * side, y: s.y - 2.0, z: s.z + rz * d * side,
+          jobs.tree.push({ x: s.x + rx * d * side, y: gy(d) - 0.30, z: s.z + rz * d * side,
                            h, r: P.tree.r * (0.8 + (j % 3) * 0.16), c: p.tree });
         }
       }
@@ -535,7 +622,7 @@ export function buildStageMesh(THREE, stage) {
           const d = s.w + P.wall.gap + P.wall.w * 0.5;
           // Each building gets its own shade of the same material. Two hex values would
           // read as two kinds of house; a scale on one reads as weathering.
-          jobs.slab.push({ x: s.x + rx * d * side, y: s.y - 0.4 + h * 0.5,
+          jobs.slab.push({ x: s.x + rx * d * side, y: gy(d) - 0.40 + h * 0.5,
                            z: s.z + rz * d * side, head: s.head,
                            sx: P.wall.w, sy: h, sz: 2.0 + (j % 4) * 1.4,
                            c: p.wall, shade: 0.74 + (j % 6) * 0.09 });
@@ -548,7 +635,7 @@ export function buildStageMesh(THREE, stage) {
         const j = (i * 29) % 19;
         const h = P.mono.h * (0.55 + (j % 7) * 0.12);
         const d = s.w + P.mono.out + (j % 5) * 4.5;
-        jobs.slab.push({ x: s.x + rx * d * side, y: s.y - 1.5 + h * 0.5,
+        jobs.slab.push({ x: s.x + rx * d * side, y: gy(d) - 0.60 + h * 0.5,
                          z: s.z + rz * d * side, head: s.head + (j % 5) * 0.19,
                          sx: P.mono.w, sy: h, sz: P.mono.w * (0.6 + (j % 3) * 0.3),
                          c: p.stone, shade: 0.68 + (j % 5) * 0.10 });
