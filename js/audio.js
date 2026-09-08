@@ -185,7 +185,11 @@ export class Sound {
   }
 
   start() {
-    if (this.ready) return;
+    // Already built: the only thing that can be wrong is a context left suspended by a
+    // pause, a tab switch or the browser's autoplay policy. Nothing else resumes it on
+    // this path, and a suspended context is silent for the rest of the session — which
+    // is indistinguishable, from the sofa, from the sound being broken.
+    if (this.ready) { this.ctx?.resume?.(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();

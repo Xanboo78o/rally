@@ -647,6 +647,9 @@ const menu = new Menu({
   onStart: spec => {
     run = spec;
     sound.start();
+    // The context is created inside this click, so it should be running — but if the
+    // browser handed it back suspended anyway, this is the last gesture we get.
+    sound.ctx?.resume?.();
     voice.attach(sound.ctx, sound.master);
     look.enable();        // needs the tap: iOS won't hand over the sensor otherwise
     menu.hide();
@@ -691,6 +694,8 @@ if (AUTO) {
   $('start').classList.add('gone');
   sound.start();          // so headless runs exercise the audio path too
   voice.attach(sound.ctx, sound.master);
+} };
+
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot
   // can be taken at an exact moment (mid-jump, say) rather than whenever the headless
   // browser happens to get round to it.
