@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RALLY — sound bench</title>
+<style>
+  body { margin:0; padding:18px; background:#15181c; color:#f2efe9;
+         font:500 14px/1.4 ui-sans-serif,system-ui,sans-serif; }
+  h1 { font:900 20px/1 ui-sans-serif,sans-serif; letter-spacing:.14em; margin:0 0 4px; }
+  p.lead { color:rgba(242,239,233,.5); font-size:12px; margin:0 0 18px; }
+  .row { margin:14px 0; }
+  label { display:flex; justify-content:space-between; font:700 11px/1 ui-monospace,Menlo,monospace;
+          letter-spacing:.1em; color:rgba(242,239,233,.7); margin-bottom:6px; }
+  label b { color:#f2efe9; }
+  input[type=range] { width:100%; accent-color:#d8433a; }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  button { background:#d8433a; color:#fff; border:0; border-radius:8px; padding:12px 16px;
+           font:800 12px/1 ui-sans-serif,sans-serif; letter-spacing:.1em; cursor:pointer; }
+  button.alt { background:#2b2f36; }
+  select { background:#2b2f36; color:#f2efe9; border:1px solid rgba(242,239,233,.2);
+           border-radius:8px; padding:10px; font:700 12px/1 ui-monospace,Menlo,monospace; width:100%; }
+  .note { margin-top:22px; padding:12px; border-radius:8px; background:#1d2126;
+          color:rgba(242,239,233,.6); font-size:12px; }
+  #go { width:100%; padding:18px; font-size:15px; }
+</style>
+</head>
+<body>
+<h1>SOUND BENCH</h1>
+<p class="lead">Every live parameter, on a slider. I can't hear any of this — tell me what's wrong and I'll move the numbers.</p>
+
+<button id="go">START AUDIO</button>
+
+<div id="panel" hidden>
+  <div class="row">
+    <label>ENGINE RPM <b id="vr">0.30</b></label>
+    <input type="range" id="rpm" min="0" max="1" step="0.01" value="0.3">
+  </div>
+  <div class="row">
+    <label>SPEED <b id="vs">0.00</b></label>
+    <input type="range" id="spd" min="0" max="1" step="0.01" value="0">
+  </div>
+  <div class="row">
+    <label>SLIP / SKID <b id="vl">0.00</b></label>
+    <input type="range" id="slip" min="0" max="1" step="0.01" value="0">
+  </div>
+  <div class="row">
+    <label>AIR DUCK — 1 on the ground, 0 flying <b id="vd">1.00</b></label>
+    <input type="range" id="duck" min="0" max="1" step="0.01" value="1">
+  </div>
+  <div class="row">
+    <label>SURFACE</label>
+    <select id="surf"></select>
+  </div>
+  <div class="row">
+    <label>ONE-SHOTS — hammer them, they should never repeat</label>
+    <div class="btns">
+      <button id="thudS" class="alt">SMALL THUD</button>
+      <button id="thudL">BIG LANDING</button>
+      <button id="crunch">ROLL CRUNCH</button>
+      <button id="drive" class="alt">SIMULATE A RUN</button>
+    </div>
+  </div>
+  <div class="note">
+    Loops crossfade on surface change and never cut. One-shots pick at random from a
+    bank and detune &plusmn;100 cents, so repeated bumps don't machine-gun. The banks are
+    synthesised placeholders — real recordings drop straight in.
+  </div>
+</div>
+
+<script type="module">
+import { Sound, SURFACES } from './js/audio.js';
+const s = new Sound();
+const $ = id => document.getElementById(id);
+
+$('surf').innerHTML = Object.keys(SURFACES).map(k => `<option${k === 'gravel' ? ' selected' : ''}>${k}</option>`).join('');
+
+let last = performance.now();
+function loop(t) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+  $('vr').textContent = (+$('rpm').value).toFixed(2);
+  $('vs').textContent = (+$('spd').value).toFixed(2);
+  $('vl').textContent = (+$('slip').value).toFixed(2);
+  $('vd').textContent = (+$('duck').value).toFixed(2);
+  s.update({
+    rpm01: +$('rpm').value, speed01: +$('spd').value,
+    slip01: +$('slip').value, duck: +$('duck').value,
+    surface: $('surf').value,
+  }, dt);
+}
+
+$('go').addEventListener('click', () => {
+  s.start();
+  $('go').hidden = true;
+  $('panel').hidden = false;
+  requestAnimationFrame(loop);
+});
+$('thudS').addEventListener('click', () => s.thud(0.3));
+$('thudL').addEventListener('click', () => s.thud(1));
+$('crunch').addEventListener('click', () => s.crunch(0.9));
+
+// Runs the parameters through a plausible stage so the whole matrix can be heard
+// moving together rather than one slider at a time.
+$('drive').addEventListener('click', () => {
+  let t = 0;
+  const id = setInterval(() => {
+    t += 0.1;
+    const sp = Math.min(1, t / 6) * (0.6 + 0.4 * Math.sin(t * 0.5));
+    $('spd').value = Math.max(0, sp);
+    $('rpm').value = 0.26 + 0.74 * ((sp * 3) % 1);
+    $('slip').value = Math.max(0, Math.sin(t * 0.7)) * 0.8;
+    $('surf').value = (t % 9) > 7 ? 'grass' : 'gravel';
+    if (Math.random() < 0.14) s.thud(Math.random());
+    if (t > 22) { clearInterval(id); $('spd').value = 0; $('slip').value = 0; }
+  }, 100);
+});
+</script>
+</body>
+</html>

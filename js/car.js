@@ -30,8 +30,11 @@ export const CAR = {
   downshiftCost: 0.035, // fraction of speed given up for it
   downshiftCooldown: 0.42,
 
-  offroadGrip: 0.55,    // grip multiplier off the road
-  offroadDrag: 3.4,     // extra drag off the road
+  // Going off is NOT a speed penalty. It's a feel penalty: the car goes light and
+  // loose and the whole picture starts shaking so hard you can't place it. The drag
+  // used to be 3.4, which just quietly slowed you down and taught nothing.
+  offroadGrip: 0.46,    // grip multiplier off the road
+  offroadDrag: 0.8,     // extra drag off the road
 
   understeerScrub: 2.2, // m/s^2 of speed lost per unit of over-turning
   leanPerG: 0.010,      // how far the body leans per m/s^2 of cornering load. 0.038 gave
@@ -39,6 +42,8 @@ export const CAR = {
                         // car rolls 3-7 degrees.
   rollTrip: 8.5,        // sideways m/s that tips the car when a wheel digs in off-road
   rollLanding: 0.90,    // landing severity that puts it on its roof
+  tumbleBounce: 0.32,   // how much of the vertical speed comes back off each impact
+  tumbleDrag: 1.15,     // how fast it slides to a stop once it's over
 
   gravity: 22.5,        // exaggerated, so jumps come down decisively
   airYaw: 1.35,         // how much the wheel can rotate you in mid-air
@@ -59,7 +64,10 @@ export class Car {
     this.justLanded = false;
     this._dsCool = 0;
     this.rolled = false;
-    this.rollSpin = 0;
+    this.settled = false;    // finished tumbling and come to rest
+    this.tumble = 0;         // accumulated barrel-roll angle, keeps going past 2pi
+    this.tumbleRate = 0;
+    this.impact = 0;         // set on each ground hit, consumed for a crunch
     this.accelLong = 0;
     this.pitch = 0;        // visual only, from suspension + air
     this.roll = 0;
@@ -68,6 +76,11 @@ export class Car {
   get speed() { return Math.hypot(this.vf, this.vr); }
   get speedFactor() { return Math.min(1, this.speed / CAR.topSpeed); }
   get slip() { return Math.atan2(this.vr, Math.max(1, Math.abs(this.vf))); }
+  // What the camera should actually roll by: the full tumble once it's over, the
+  // gentle cornering lean otherwise.
+  get bodyRoll() { return this.rolled ? this.tumble : this.roll * 0.75; }
+  // Consume the one-shot impact magnitude.
+  takeImpact() { const i = this.impact; this.impact = 0; return i; }
 
   downshift() {
     if (this._dsCool > 0 || this.airborne) return false;
@@ -76,8 +89,48 @@ export class Car {
     return true;
   }
 
+  // Once it's over, it's a rag doll: gravity, bounce, tumble, slide to a stop. None of
+  // the driving model applies any more, so this runs instead of it rather than alongside.
+  _tumbleStep(dt, ground) {
+    this.vy -= CAR.gravity * dt;
+    this.y += this.vy * dt;
+
+    if (this.y <= ground.height) {
+      this.y = ground.height;
+      if (this.vy < -2.2) {
+        this.impact = Math.max(this.impact, Math.min(1, -this.vy / 14));
+        this.vy = -this.vy * CAR.tumbleBounce;
+        this.tumbleRate *= 0.82;
+        this.vf *= 0.74;
+      } else {
+        this.vy = 0;
+        this.tumbleRate *= Math.exp(-2.4 * dt);
+      }
+    }
+
+    this.tumble += this.tumbleRate * dt;
+    this.tumbleRate *= Math.exp(-0.42 * dt);
+    this.yaw += this.yawRate * dt;
+    this.yawRate *= Math.exp(-1.3 * dt);
+    this.vf *= Math.exp(-CAR.tumbleDrag * dt);
+    this.vr *= Math.exp(-CAR.tumbleDrag * dt);
+
+    const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
+    this.x += (this.vf * s + this.vr * c) * dt;
+    this.z += (this.vf * c - this.vr * s) * dt;
+
+    const wantPitch = Math.sin(this.tumble * 0.63) * 0.30;
+    this.pitch += (wantPitch - this.pitch) * Math.min(1, 5 * dt);
+
+    if (!this.settled && Math.abs(this.tumbleRate) < 0.55 && this.speed < 1.6
+        && this.y <= ground.height + 0.05) {
+      this.settled = true;
+    }
+  }
+
   // ground: { height, onRoad } sampled from the stage at the car's position.
   step(dt, wheelPos, handbrake, ground) {
+    if (this.rolled) return this._tumbleStep(dt, ground);
     if (this._dsCool > 0) this._dsCool -= dt;
     const vfBefore = this.vf;
 
@@ -189,25 +242,22 @@ export class Car {
     // ---- tipping over --------------------------------------------------------
     // You can't roll a car with steering alone — grip runs out first. What actually
     // rolls one is TRIPPING: sliding sideways and having a wheel dig into something.
-    if (!this.rolled) {
-      const trippedOffRoad = !ground.onRoad && Math.abs(this.vr) > CAR.rollTrip && this.speed > 11;
-      if (trippedOffRoad || this.landingHit > CAR.rollLanding) {
-        this.rolled = true;
-        this.rollSpin = Math.sign(this.vr || 1) * 5.5;
-      }
-    } else {
-      this.rollSpin *= Math.exp(-1.1 * dt);
-      this.vf *= Math.exp(-1.9 * dt);
-      this.vr *= Math.exp(-1.9 * dt);
+    const trippedOffRoad = !ground.onRoad && Math.abs(this.vr) > CAR.rollTrip && this.speed > 11;
+    if (trippedOffRoad || this.landingHit > CAR.rollLanding) {
+      this.rolled = true;
+      // Barrel-rolls the way it was thrown, faster the harder you were going, and it
+      // gets launched off the ground so the first impact is a real one.
+      this.tumbleRate = Math.sign(this.vr || 1) * (7.6 + this.speed * 0.19);
+      this.yawRate += Math.sign(this.vr || 1) * 1.6;
+      this.vy = 3.4;
+      this.impact = 0.8;
     }
 
     // ---- body attitude, visual only -----------------------------------------
     // Lean is driven by cornering load, so hard corners genuinely feel like they're
     // about to put you over even though grip caps the real thing.
     const latAccel = this.vf * this.yawRate;
-    const targetRoll = this.rolled
-      ? this.roll + this.rollSpin * dt
-      : Math.max(-0.5, Math.min(0.5, latAccel * CAR.leanPerG)) - this.vr * 0.004;
+    const targetRoll = Math.max(-0.5, Math.min(0.5, latAccel * CAR.leanPerG)) - this.vr * 0.004;
     this.roll += (targetRoll - this.roll) * Math.min(1, 9 * dt);
     // PITCH = the angle of the direction you are actually travelling. While planted vy
     // is the road's gradient, so the car tilts with the hill; in the air it's the flight

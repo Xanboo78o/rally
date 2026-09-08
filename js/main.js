@@ -16,6 +16,17 @@ import { Look } from './look.js';
 import { Sound } from './audio.js';
 
 const FIXED = 1 / 120;
+// Speed fraction at which each gear runs out. rpm sawtooths inside each one, so the
+// engine climbs and drops the way a gearbox actually sounds.
+const GEARS = [0.14, 0.27, 0.42, 0.62, 1.0];
+function rpmFor(sf) {
+  let lo = 0;
+  for (const hi of GEARS) {
+    if (sf <= hi) return 0.26 + 0.74 * ((sf - lo) / (hi - lo));
+    lo = hi;
+  }
+  return 1;
+}
 const NOTE_LEAD = 55;      // metres before a corner that the co-driver calls it
 
 const $ = id => document.getElementById(id);
@@ -77,6 +88,21 @@ let noteSeg = -1, noteUntil = 0;
 let bestAir = parseFloat(localStorage.getItem('rally.air') || '0') || 0;
 let camShake = 0;
 let hoodDirt = 0;
+let fading = false;
+let prevBumpY = 0;
+let cabinBump = 0;
+
+function startFade() {
+  fading = true;
+  $('fade').classList.add('on');
+  setTimeout(() => {
+    resetRun();
+    $('start').classList.remove('gone');
+    $('fade').classList.remove('on');
+    running = false;
+    fading = false;
+  }, 1150);
+}
 
 const controls = new Controls($('app'), wheel, () => {
   if (car.downshift()) flash($('shiftLight'));
@@ -115,7 +141,8 @@ function resetRun() {
   car.x = s0.x; car.z = s0.z; car.y = s0.y;
   car.yaw = s0.head; car.vf = 0; car.vr = 0; car.vy = 0; car.yawRate = 0;
   car.airborne = false; car.airTime = 0; car.pitch = 0; car.roll = 0;
-  car.rolled = false; car.rollSpin = 0; car.landingHit = 0;
+  car.rolled = false; car.settled = false; car.tumble = 0; car.tumbleRate = 0;
+  car.impact = 0; car.landingHit = 0;
   wheel.pos = 0; wheel.target = 0; wheel.release();
   glass.clear();
   hoodDirt = 0;
@@ -141,6 +168,7 @@ let acc = 0;
 
 function frame(now) {
   requestAnimationFrame(frame);
+  fitCanvas();
   const dtReal = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (!running) return;
@@ -188,13 +216,11 @@ function step(dt) {
     } else break;
   }
 
-  // --- on your roof ---------------------------------------------------------
-  if (car.rolled && !finished) {
-    finished = true; timing = false;
-    $('finishTime').textContent = 'ROLLED';
-    $('finishTag').textContent = '\\o/  you are fine';
-    $('finish').classList.add('show');
-  }
+  // --- on your roof: the tumble plays out, then it fades and you're back at the
+  //     menu. No banner over the top of it.
+  const hit = car.takeImpact();
+  if (hit > 0) sound.crunch(hit);
+  if (car.rolled) { timing = false; if (car.settled && !fading) startFade(); }
 
   // --- timing --------------------------------------------------------------
   if (!timing && p > 12) timing = true;
@@ -241,13 +267,29 @@ function render(dtReal) {
   let rumbleRoll = 0, rumblePitch = 0;
   if (!car.airborne) {
     const d = ground.progress;
-    const k = car.speedFactor * (ground.onRoad ? 1 : 3.0);
+    // OFF-ROAD IS THE PUNISHMENT. Five times the violence of the road, on top of a
+    // road that now shakes harder than it did.
+    const k = car.speedFactor * (ground.onRoad ? 1 : 5.0);
     // Moving the camera up and down barely shifts the view — a translation hardly
     // changes what a wide lens sees. The PITCH wobble is what actually throws the
     // picture around, so that carries the bump and the rise/fall backs it up.
-    eye.y += surfaceBump(d) * 0.055 * k;
-    rumblePitch = surfaceBump(d * 1.31 + 5) * 0.042 * k;
-    rumbleRoll = surfaceBump(d * 0.77 + 11) * 0.030 * k;
+    const bumpY = surfaceBump(d) * 0.11 * k;
+    eye.y += bumpY;
+    rumblePitch = surfaceBump(d * 1.31 + 5) * 0.075 * k;
+    rumbleRoll = surfaceBump(d * 0.77 + 11) * 0.055 * k;
+
+    // Your head is on a seat; the dash is bolted to the car. So the interior jolts
+    // against you rather than staying nailed to the screen.
+    cabinBump = surfaceBump(d * 0.91 + 3) * 0.040 * k * innerHeight;
+
+    // Suspension compression = how fast the body is being moved by the surface.
+    // Past a threshold that's a real hit, so the shocks thud.
+    const comp = Math.abs(bumpY - prevBumpY) / Math.max(dtReal, 1e-4);
+    prevBumpY = bumpY;
+    if (comp > 1.4) sound.thud(Math.min(1, (comp - 1.4) / 2.6));
+  } else {
+    prevBumpY = 0;
+    cabinBump += (0 - cabinBump) * Math.min(1, 6 * dtReal);
   }
 
   camera.position.copy(eye);
@@ -261,13 +303,14 @@ function render(dtReal) {
   // Head pitch from the phone's tilt, on top of the car's own attitude.
   const lookDeg = look.update(dtReal);
   cabinEl.style.setProperty('--look', look.overlayPx(camera.fov, innerHeight).toFixed(1) + 'px');
+  cabinEl.style.setProperty('--bump', cabinBump.toFixed(1) + 'px');
   camera.rotateX(car.pitch + rumblePitch + lookDeg * 0.01745 + air.shake * (Math.random() - 0.5) * 0.06);
 
   // The bonnet belongs to the CAR, not to your head, so counter-rotate it out of the
   // look. Without this it stays pinned to the screen while you glance around, which is
   // the one thing that would give the whole illusion away.
   cockpit.rotation.x = -lookDeg * 0.01745;
-  camera.rotateZ(car.roll * 0.75 + rumbleRoll);
+  camera.rotateZ(car.bodyRoll + rumbleRoll);
 
   // The rim visibly lags your thumb, and unwinds on its own when you let go.
   rimEl.setAttribute('transform', 'rotate(' + (wheel.pos * VISUAL_LOCK * 57.2958).toFixed(2) + ')');
@@ -283,7 +326,14 @@ function render(dtReal) {
   glass.speed = car.speedFactor;
   glass.draw();
 
-  sound.update(car.speedFactor, ground.onRoad, air.duck, dtReal);
+  sound.update({
+    rpm01: rpmFor(car.speedFactor),
+    speed01: car.speedFactor,
+    surface: ground.onRoad ? 'gravel' : 'dirt',
+    slip01: Math.min(1, Math.abs(car.slip) / 0.45),
+    duck: air.duck,
+    airborne: car.airborne,
+  }, dtReal);
   renderer.render(scene, camera);
 }
 
@@ -315,11 +365,22 @@ function hud() {
 // ---------------------------------------------------------------------------
 // boot
 // ---------------------------------------------------------------------------
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+// Checked every frame rather than only on the resize event. Phones fire resize before
+// the viewport has settled after a rotation (and again when the URL bar hides), which
+// leaves the canvas at the old size with the page background showing beside it.
+let fitW = 0, fitH = 0;
+function fitCanvas() {
+  if (innerWidth === fitW && innerHeight === fitH) return;
+  fitW = innerWidth; fitH = innerHeight;
+  camera.aspect = fitW / fitH;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+  renderer.setSize(fitW, fitH, false);
+  renderer.domElement.style.width = fitW + 'px';
+  renderer.domElement.style.height = fitH + 'px';
+  glass.resize();
+}
+addEventListener('resize', fitCanvas);
+addEventListener('orientationchange', () => setTimeout(fitCanvas, 120));
 
 $('start').addEventListener('click', () => {
   sound.start();

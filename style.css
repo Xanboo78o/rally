@@ -171,7 +171,7 @@ html, body {
 #cabin {
   position: absolute; left: 0; right: 0;
   top: -45vh; height: 190vh;
-  transform: translateY(var(--look, 0px));
+  transform: translateY(calc(var(--look, 0px) + var(--bump, 0px)));
   will-change: transform;
 }
 #cabin > * { position: absolute; }
@@ -296,3 +296,10 @@ html, body {
 @media (max-height: 400px) {
   #wheelSvg { width: 43vh; height: 43vh; }
 }
+
+/* Rolling it fades the screen out and drops you back at the menu — no banner. */
+#fade {
+  position: fixed; inset: 0; z-index: 9; pointer-events: none;
+  background: #000; opacity: 0; transition: opacity .75s ease-in;
+}
+#fade.on { opacity: 1; }
