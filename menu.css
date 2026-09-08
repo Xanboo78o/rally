@@ -173,3 +173,55 @@
 @media (max-height: 430px) and (orientation: landscape) {
   #menu .screen[data-screen="home"] { justify-content: flex-start; }
 }
+
+/* ------------------------------------------------------------------ pause ---- */
+/* Over the frozen frame, so it's translucent and lives outside #menu (which is
+   opaque). The road stays visible behind it — you're still in the run. */
+#pause {
+  position: fixed; inset: 0; z-index: 30; display: none;
+  place-items: center; padding: 20px;
+  background: rgba(14,17,20,.72); backdrop-filter: blur(7px);
+}
+#pause.on { display: grid; }
+.pCard {
+  width: 100%; max-width: 360px; text-align: center;
+  background: rgba(30,35,41,.94); border: 1px solid rgba(242,239,233,.14);
+  border-radius: 16px; padding: 20px 18px 12px;
+}
+.pCard .kind {
+  font: 700 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .18em; color: var(--dim);
+}
+.pCard h2 {
+  margin: 10px 0 2px; font: 900 44px/1 ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.pCard .sub {
+  font: 600 11px/1.4 ui-monospace, Menlo, monospace; color: var(--dim);
+  letter-spacing: .1em; margin-bottom: 16px;
+}
+.pCard .mGo { margin-bottom: 4px; }
+.pCard .mRow { justify-content: center; letter-spacing: .12em; }
+.pCard .mRow .arrow { margin-left: 6px; }
+
+/* the pause button itself, top right where no thumb ever goes */
+#pauseBtn {
+  pointer-events: auto; margin-top: 8px;
+  background: rgba(0,0,0,.35); color: var(--ink);
+  border: 1px solid rgba(242,239,233,.25); border-radius: 8px;
+  font: 700 11px/1 ui-monospace, Menlo, monospace; letter-spacing: .1em;
+  padding: 9px 12px; cursor: pointer;
+}
+
+/* counting back in */
+#resumeCount {
+  position: fixed; inset: 0; z-index: 29; display: none;
+  place-items: center; pointer-events: none;
+  font: 900 120px/1 ui-monospace, Menlo, monospace; color: var(--ink);
+  text-shadow: 0 4px 40px rgba(0,0,0,.7);
+  font-variant-numeric: tabular-nums;
+}
+#resumeCount.on { display: grid; animation: countPop .38s ease-out; }
+@keyframes countPop {
+  from { transform: scale(1.5); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}

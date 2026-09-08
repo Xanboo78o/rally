@@ -49,14 +49,18 @@ export function sprintOfDay(stage, key = dayKey()) {
 
 export class Menu {
   // onStart({ mode, from, to, key, title }) hands a run spec back to the game.
-  constructor({ stage, atmos, onStart }) {
+  constructor({ stage, atmos, onStart, onResume, onRestart, onQuit }) {
     this.stage = stage;
     this.atmos = atmos;
     this.onStart = onStart;
+    this.onResume = onResume;
+    this.onRestart = onRestart;
+    this.onQuit = onQuit;
     this.root = el('div', '');
     this.root.id = 'menu';
     document.body.appendChild(this.root);
     this._build();
+    this._buildPause();
     this._tick = this._tick.bind(this);
     setInterval(this._tick, 1000);
   }
@@ -90,6 +94,55 @@ export class Menu {
       const run = e.target.closest('[data-run]');
       if (run && !run.disabled) this._start(run.dataset.run);
     });
+  }
+
+  // The pause overlay is NOT one of the menu screens: it sits over the frozen frame, so
+  // it needs to be translucent and it needs to live outside #menu, which is opaque.
+  _buildPause() {
+    const p = el('div', '');
+    p.id = 'pause';
+    p.innerHTML = `
+      <div class="pCard">
+        <div class="kind" data-pkind>PAUSED</div>
+        <h2 data-ptime>0.00</h2>
+        <div class="sub" data-pwhere>—</div>
+        <button class="mGo" data-pause="resume">RESUME</button>
+        <button class="mRow" data-pause="restart">START AGAIN<span class="arrow">›</span></button>
+        <button class="mRow" data-pause="quit">QUIT TO HOME<span class="arrow">›</span></button>
+      </div>`;
+    document.body.appendChild(p);
+    this.pauseEl = p;
+    p.addEventListener('click', e => {
+      const b = e.target.closest('[data-pause]');
+      if (!b) return;
+      if (b.dataset.pause === 'resume') this.onResume?.();
+      if (b.dataset.pause === 'restart') this.onRestart?.();
+      if (b.dataset.pause === 'quit') this.onQuit?.();
+    });
+
+    // The count back in. Coming straight off a menu into a corner at 90mph with the
+    // clock already running isn't a pause, it's a penalty.
+    const c = el('div', '');
+    c.id = 'resumeCount';
+    document.body.appendChild(c);
+    this.countEl = c;
+  }
+
+  pause(info) {
+    const p = this.pauseEl;
+    $('[data-pkind]', p).textContent = info.mode === 'sprint' ? 'THE DAILY — PAUSED' : 'STAGE OF THE DAY — PAUSED';
+    $('[data-ptime]', p).textContent = fmtTime(info.time) === '--' ? '0.00' : fmtTime(info.time);
+    $('[data-pwhere]', p).textContent = info.title || '';
+    p.classList.add('on');
+  }
+
+  unpause() { this.pauseEl.classList.remove('on'); }
+
+  // n > 0 shows the number; 0 clears it.
+  count(n) {
+    this.countEl.textContent = n > 0 ? String(n) : '';
+    this.countEl.classList.toggle('on', n > 0);
+    if (n > 0) { this.countEl.style.animation = 'none'; void this.countEl.offsetWidth; this.countEl.style.animation = ''; }
   }
 
   _card(mode, title) {

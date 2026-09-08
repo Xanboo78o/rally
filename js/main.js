@@ -142,6 +142,8 @@ const sound = new Sound();
 // the clock stops. Nothing new is generated or authored to make a sprint exist.
 let run = null;
 let running = false;
+let paused = false;
+let resumeIn = 0;        // seconds of count-in left before the clock starts again
 let timer = 0, timing = false, finished = false;
 let best = parseFloat(localStorage.getItem('rally.best') || '0') || 0;
 let noteSeg = -1, noteUntil = 0;
@@ -263,6 +265,31 @@ function resetRun() {
   say(SEGMENTS[s0.seg].note);
 }
 
+function pauseRun() {
+  if (!running || paused) return;
+  paused = true;
+  resumeIn = 0;
+  menu.count(0);
+  // Suspending the context is the honest way to stop the engine: without it the loops
+  // just carry on at whatever revs you paused at.
+  sound.ctx?.suspend?.();
+  controls.handbrake = 0;
+  wheel.release();
+  menu.pause({ mode: run.mode, time: timer, title: run.title });
+}
+
+function resumeRun() {
+  if (!paused) return;
+  paused = false;
+  menu.unpause();
+  sound.ctx?.resume?.();
+  // You may well have put the phone down. Neutral is wherever you're holding it NOW.
+  look.recentre();
+  resumeIn = 3;
+  menu.count(3);
+  last = performance.now();
+}
+
 function say(text) {
   const el = $('note');
   el.textContent = text;
@@ -282,6 +309,19 @@ function frame(now) {
   const dtReal = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (!running) return;
+
+  // Paused, or counting back in: keep DRAWING (a canvas that stops being redrawn can be
+  // dropped by the compositor, and the whole point is that the road stays visible behind
+  // the card) but run no physics and move no clock.
+  if (paused) { render(0); return; }
+  if (resumeIn > 0) {
+    resumeIn -= dtReal;
+    menu.count(Math.ceil(resumeIn));
+    render(0);
+    if (resumeIn > 0) return;
+    resumeIn = 0;
+    menu.count(0);
+  }
 
   controls.update(dtReal);
   const ts = air.update(dtReal, car, car.speedFactor);
@@ -538,11 +578,32 @@ addEventListener('orientationchange', () => setTimeout(fitCanvas, 120));
 const menu = new Menu({
   stage,
   atmos: ATMOS,
+  onResume: () => resumeRun(),
+  onRestart: () => {
+    paused = false;
+    menu.unpause();
+    sound.ctx?.resume?.();
+    resetRun();
+    resumeIn = 0;
+    menu.count(0);
+    last = performance.now();
+  },
+  onQuit: () => {
+    paused = false;
+    running = false;
+    resumeIn = 0;
+    menu.count(0);
+    menu.unpause();
+    sound.ctx?.resume?.();   // leave the context running, or the menu's next run is mute
+    menu.show('home');
+  },
   onStart: spec => {
     run = spec;
     sound.start();
     look.enable();        // needs the tap: iOS won't hand over the sensor otherwise
     menu.hide();
+    menu.unpause();
+    paused = false; resumeIn = 0; menu.count(0);
     $('start').classList.add('gone');
     resetRun();
     running = true;
@@ -565,8 +626,16 @@ addEventListener('keydown', e => {
 });
 
 $('retry').addEventListener('click', e => { e.stopPropagation(); resetRun(); });
-addEventListener('keydown', e => { if (e.key === 'Escape' && running) { running = false; menu.show('home'); } });
-$('resetBtn').addEventListener('click', e => { e.stopPropagation(); resetRun(); });
+$('pauseBtn').addEventListener('click', e => { e.stopPropagation(); pauseRun(); });
+addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !running) return;
+  paused ? resumeRun() : pauseRun();
+});
+// A call comes in, or you switch apps. The car should not still be driving when you
+// come back, and the clock certainly shouldn't have been running.
+addEventListener('visibilitychange', () => { if (document.hidden) pauseRun(); });
+addEventListener('blur', () => pauseRun());
+
 
 resetRun();
 if (!AUTO) { $('start').classList.add('gone'); menu.show('home'); }
@@ -588,5 +657,8 @@ if (AUTO) {
   for (let t = 0; t < at; t += FIXED) step(FIXED);
   running = true;
   last = performance.now();
+  // ?pause=1 opens the pause card over the frozen frame, so the overlay can be seen
+  // headlessly — a screenshot can't press the button.
+  if (QS.get('pause') === '1') pauseRun();
 }
 requestAnimationFrame(frame);
