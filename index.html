@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#9fb4c4">
 <meta name="mobile-web-app-capable" content="yes">
 <title>RALLY — feel prototype</title>
-<link rel="stylesheet" href="style.css?v=1788878893">
+<link rel="stylesheet" href="style.css?v=1788881636">
 </head>
 <body>
 
@@ -19,21 +19,68 @@
 <!-- the interior is an OVERLAY. A real onboard camera is bolted to the car, so the dash
      and wheel are perfectly static and only the world moves behind them. -->
 <div id="cockpit">
-  <div class="pillar l"></div>
-  <div class="pillar r"></div>
-  <div class="dash"></div>
-  <div class="binnacle"></div>
-  <svg id="wheelSvg" viewBox="-100 -100 200 200" aria-hidden="true">
-    <g id="wheelRot">
-      <circle class="rim" r="84"/>
-      <circle class="rimHi" r="84"/>
-      <path class="spoke" d="M0 0 L-78 6"/>
-      <path class="spoke" d="M0 0 L78 6"/>
-      <path class="spoke" d="M0 0 L0 76"/>
-      <circle class="hub" r="24"/>
-      <rect class="mark" x="-11" y="-95" width="22" height="22" rx="4"/>
-    </g>
-  </svg>
+  <!-- The cabin is TALLER than the screen. Tilting the phone slides it, so looking down
+       reveals the console, shifter and footwell, and looking up reveals the headliner.
+       It moves slightly more than the world does, which is what reads as parallax. -->
+  <div id="cabin">
+
+    <!-- roof. A real interior is closed at the top; mine used to run to open sky. -->
+    <div class="roof"></div>
+    <div class="visor l"></div>
+    <div class="visor r"></div>
+    <div class="mirror"></div>
+
+    <div class="pillar l"></div>
+    <div class="pillar r"></div>
+
+    <!-- dash: top roll, binnacle over the instruments, vent slots, and the centre
+         stack sitting right of the wheel because the driver is on the left -->
+    <div class="dashTop"></div>
+    <div class="dash"></div>
+    <div class="binnacle"></div>
+    <div class="vent v1"></div>
+    <div class="vent v2"></div>
+    <div class="stack"></div>
+    <div class="hazard"></div>
+    <div class="stalk"></div>
+
+    <svg id="wheelSvg" viewBox="-100 -100 200 200" aria-hidden="true">
+      <g id="wheelRot">
+        <path class="rim" d="M -56.7 62 A 84 84 0 1 1 56.7 62"/>
+        <path class="rimFlat" d="M -56.7 62 L 56.7 62"/>
+        <path class="rimHi" d="M -56.7 62 A 84 84 0 1 1 56.7 62"/>
+
+        <path class="spoke" d="M -22 8 L -74 26"/>
+        <path class="spoke" d="M 22 8 L 74 26"/>
+        <path class="spoke" d="M 0 28 L 0 62"/>
+
+        <rect class="pod" x="-71" y="6" width="42" height="31" rx="8"/>
+        <rect class="pod" x="29" y="6" width="42" height="31" rx="8"/>
+        <g class="btn">
+          <rect x="-65" y="12" width="12" height="8" rx="2.5"/><rect x="-49" y="12" width="12" height="8" rx="2.5"/>
+          <rect x="-65" y="24" width="12" height="8" rx="2.5"/><rect x="-49" y="24" width="12" height="8" rx="2.5"/>
+          <rect x="37" y="12" width="12" height="8" rx="2.5"/><rect x="53" y="12" width="12" height="8" rx="2.5"/>
+          <rect x="37" y="24" width="12" height="8" rx="2.5"/><rect x="53" y="24" width="12" height="8" rx="2.5"/>
+        </g>
+
+        <path class="hub" d="M -31 -16 L 31 -16 L 41 12 L 22 36 L -22 36 L -41 12 Z"/>
+        <path class="hubHi" d="M -31 -16 L 31 -16 L 35 -3 L -35 -3 Z"/>
+
+        <!-- centre stripe at 12 o'clock, the way a rally wheel is marked -->
+        <rect class="mark" x="-7" y="-96" width="14" height="27" rx="3"/>
+      </g>
+    </svg>
+
+    <!-- lower cabin: only visible when you tilt down to look at it. .lower is an opaque
+         backing so the world can't show through the gaps between console and seats. -->
+    <div class="lower"></div>
+    <div class="tunnel"></div>
+    <div class="shifter"><i></i></div>
+    <div class="handbrake"></div>
+    <div class="seat l"></div>
+    <div class="seat r"></div>
+    <div class="footwell"></div>
+  </div>
 </div>
 
 <div id="crash"></div>
@@ -99,16 +146,17 @@
 <script type="importmap">
 { "imports": {
   "three": "./js/vendor/three.module.min.js",
-  "./js/stage.js": "./js/stage.js?v=1788878893",
-  "./js/car.js": "./js/car.js?v=1788878893",
-  "./js/wheel.js": "./js/wheel.js?v=1788878893",
-  "./js/controls.js": "./js/controls.js?v=1788878893",
-  "./js/air.js": "./js/air.js?v=1788878893",
-  "./js/cockpit.js": "./js/cockpit.js?v=1788878893",
-  "./js/glass.js": "./js/glass.js?v=1788878893",
-  "./js/audio.js": "./js/audio.js?v=1788878893"
+  "./js/stage.js": "./js/stage.js?v=1788881636",
+  "./js/car.js": "./js/car.js?v=1788881636",
+  "./js/wheel.js": "./js/wheel.js?v=1788881636",
+  "./js/controls.js": "./js/controls.js?v=1788881636",
+  "./js/air.js": "./js/air.js?v=1788881636",
+  "./js/cockpit.js": "./js/cockpit.js?v=1788881636",
+  "./js/glass.js": "./js/glass.js?v=1788881636",
+  "./js/look.js": "./js/look.js?v=1788881636",
+  "./js/audio.js": "./js/audio.js?v=1788881636"
 } }
 </script>
-<script type="module" src="./js/main.js?v=1788878893"></script>
+<script type="module" src="./js/main.js?v=1788881636"></script>
 </body>
 </html>

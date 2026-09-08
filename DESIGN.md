@@ -142,7 +142,11 @@ asks for them.
   downshift. Three inputs, one system, no rule to explain. And a heavy wheel takes time,
   so you must start turning before the corner arrives — which in first person you can't
   see. Acting on the notes early is mandatory, not flavour.
-- **No tilt steering.** Ever.
+- **No tilt steering.** Ever. But **tilt to LOOK** — tip the phone down and your head goes
+  down (console, shifter, footwell), tip it up and you get headliner and more windscreen.
+  The cabin is built taller than the screen so there's something there to find, and the
+  interior slides slightly further than the world does, which is what reads as depth.
+  Neutral is calibrated from however you happen to be holding it when a run starts.
 
 **Air time should feel much bigger than it is.** In order of how much they matter:
 silence (cut the engine and gravel on takeoff, leave wind — this one is most of it),

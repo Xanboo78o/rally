@@ -12,6 +12,7 @@ import { Controls } from './controls.js';
 import { AirFx } from './air.js';
 import { buildCockpit, VISUAL_LOCK } from './cockpit.js';
 import { Glass } from './glass.js';
+import { Look } from './look.js';
 import { Sound } from './audio.js';
 
 const FIXED = 1 / 120;
@@ -55,6 +56,8 @@ camera.add(cockpit);
 // Interior is a DOM overlay now; these are the bits the sim drives.
 const rimEl = document.getElementById('wheelRot');
 const glass = new Glass(document.getElementById('glass'));
+const cabinEl = document.getElementById('cabin');
+const look = new Look();
 
 // ---------------------------------------------------------------------------
 // state
@@ -245,7 +248,15 @@ function render(dtReal) {
   // +PI because a three.js camera looks down its local -Z, while the car's heading
   // is (sin yaw, cos yaw). Without it you drive the whole stage in reverse.
   camera.rotateY(Math.PI + car.yaw - car.slip * 0.28);
-  camera.rotateX(car.pitch + rumblePitch + air.shake * (Math.random() - 0.5) * 0.06);
+  // Head pitch from the phone's tilt, on top of the car's own attitude.
+  const lookDeg = look.update(dtReal);
+  cabinEl.style.setProperty('--look', look.overlayPx(camera.fov, innerHeight).toFixed(1) + 'px');
+  camera.rotateX(car.pitch + rumblePitch + lookDeg * 0.01745 + air.shake * (Math.random() - 0.5) * 0.06);
+
+  // The bonnet belongs to the CAR, not to your head, so counter-rotate it out of the
+  // look. Without this it stays pinned to the screen while you glance around, which is
+  // the one thing that would give the whole illusion away.
+  cockpit.rotation.x = -lookDeg * 0.01745;
   camera.rotateZ(car.roll * 0.75 + rumbleRoll);
 
   // The rim visibly lags your thumb, and unwinds on its own when you let go.
@@ -294,6 +305,7 @@ addEventListener('resize', () => {
 
 $('start').addEventListener('click', () => {
   sound.start();
+  look.enable();          // needs the tap: iOS won't hand over the sensor otherwise
   $('start').classList.add('gone');
   resetRun();
   running = true;
