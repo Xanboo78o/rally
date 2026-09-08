@@ -29,6 +29,23 @@ function rpmFor(sf) {
   }
   return 1;
 }
+// What the revs would read one gear lower at this speed. A downshift doesn't invent a
+// number — the wheels are still turning the same rate, so the engine has no choice but
+// to jump to whatever the shorter gear demands. With the wide ratios below that is
+// always past the limiter, so the flare is really "1 minus wherever you were" — which
+// means a downshift low in a gear flares hard and one taken at the top of a gear
+// barely moves. That's correct: if you're already screaming it can't scream more, and
+// the exhaust bark is what acknowledges the input in that case.
+function rpmDrop(sf) {
+  for (let i = 0; i < GEARS.length; i++) {
+    if (sf <= GEARS[i]) {
+      if (i === 0) return 1;                       // already in first: it just screams
+      const lo = i > 1 ? GEARS[i - 2] : 0;
+      return Math.min(1, 0.26 + 0.74 * ((sf - lo) / (GEARS[i - 1] - lo)));
+    }
+  }
+  return 1;
+}
 const NOTE_LEAD = 55;      // metres before a corner that the co-driver calls it
 
 const $ = id => document.getElementById(id);
@@ -123,6 +140,7 @@ let running = false;
 let timer = 0, timing = false, finished = false;
 let best = parseFloat(localStorage.getItem('rally.best') || '0') || 0;
 let noteSeg = -1, noteUntil = 0;
+let dsFlare = 0;           // extra revs still hanging on after a downshift
 let bestAir = parseFloat(localStorage.getItem('rally.air') || '0') || 0;
 let camShake = 0;
 let hoodDirt = 0;
@@ -166,7 +184,12 @@ function startFade() {
 }
 
 const controls = new Controls($('app'), wheel, () => {
-  if (car.downshift()) flash($('shiftLight'));
+  if (!car.downshift()) return;
+  flash($('shiftLight'));
+  // Take the higher of the two so a second shift before the first has died away
+  // doesn't quietly cancel it.
+  dsFlare = Math.max(dsFlare, rpmDrop(car.speedFactor) - rpmFor(car.speedFactor));
+  sound.downshift(car.speedFactor);
 });
 
 // TEST HOOK. ?auto drives the stage on its own so the game can be screenshotted
@@ -210,6 +233,7 @@ function resetRun() {
   hoodMat.color.setRGB(1, 1, 1);
   timer = 0; timing = false; finished = false;
   noteSeg = -1; noteUntil = 0;
+  dsFlare = 0;
   // Seed the place so the line you get on the start line is the co-driver's first call,
   // not the name of somewhere you're already standing. Only ARRIVING somewhere is news.
   shownPlace = atmosAt(stage.sections, 0).name;
@@ -246,6 +270,10 @@ function frame(now) {
     step(FIXED);
     acc -= FIXED;
   }
+
+  // Revs fall back to where the speed says they should be. Exponential, because that's
+  // what a flywheel does when you stop dragging it.
+  if (dsFlare > 0.001) dsFlare *= Math.exp(-dtReal / 0.38); else dsFlare = 0;
 
   if (noteUntil && now > noteUntil) { $('note').classList.remove('show'); noteUntil = 0; }
 
@@ -422,7 +450,7 @@ function render(dtReal) {
   glass.draw();
 
   sound.update({
-    rpm01: rpmFor(car.speedFactor),
+    rpm01: Math.min(1, rpmFor(car.speedFactor) + dsFlare),
     speed01: car.speedFactor,
     surface: ground.onRoad ? 'gravel' : 'dirt',
     slip01: Math.min(1, Math.abs(car.slip) / 0.45),

@@ -71,6 +71,7 @@ export class Sound {
     this._lastThud = 0;
     this._lastGrain = 0;
     this._lastCrunch = 0;
+    this._lastShift = -1;      // so the first shift of a run can't land inside its own rate limit
   }
 
   // --- noise banks. Several different buffers so loops don't sound identical ------
@@ -515,6 +516,59 @@ export class Sound {
 
     this._burst(buf, { gain: 0.30 * f, cut: rnd(260, 420), q: 1.1, dur: 0.20, rate, pan: side, dry: true });
     if (f > 0.45) this._burst(buf, { gain: 0.14 * f, cut: rnd(2100, 3400), q: 2.4, dur: 0.10, rate: rate * 1.4, delay: 0.012, pan: side });
+  }
+
+  // A downshift is three sounds and they arrive in the order the car actually makes
+  // them: the lever, the engine being dragged up to the lower gear by the wheels, then
+  // the exhaust barking on the overrun. The bark is the one you're listening for, but
+  // the lever is the one that makes the flick feel like an input — it's dry and it
+  // lands instantly, before the engine has done anything.
+  //
+  // `force` is speed: a downshift at a crawl is a mechanical noise, and a downshift
+  // flat out is a gunshot. Same three parts either way, wildly different weight.
+  downshift(force = 1) {
+    if (!this.ready) return;
+    const now = this.ctx.currentTime;
+    if (now - this._lastShift < 0.12) return;
+    this._lastShift = now;
+    const f = Math.max(0.2, Math.min(1, force));
+    const buf = this.hitBufs[(Math.random() * this.hitBufs.length) | 0];
+
+    // 1. the lever, into the gate. Two ticks a hair apart, because a gearlever hits
+    //    twice — out of one gate and into the next.
+    this._burst(buf, { gain: 0.085, cut: rnd(2600, 3600), q: 6, dur: 0.035, rate: CENT(rnd(-200, 200)), pan: -0.15, dry: true });
+    this._burst(buf, { gain: 0.055, cut: rnd(420, 620), q: 3, dur: 0.05, delay: 0.018, pan: -0.15, dry: true });
+
+    // 2. the engine catching. The wheels drag the revs up, so this is a rising
+    //    whump, not a falling one — that direction is the whole difference between a
+    //    downshift and an upshift and the ear gets it immediately.
+    const o = this.ctx.createOscillator();
+    o.type = 'sawtooth';
+    const t0 = now + 0.025;
+    o.frequency.setValueAtTime(rnd(58, 74), t0);
+    o.frequency.exponentialRampToValueAtTime(rnd(125, 165), t0 + 0.09);
+    const og = this.ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t0);
+    og.gain.exponentialRampToValueAtTime(0.19 * (0.4 + 0.6 * f), t0 + 0.03);
+    og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.30);
+    o.connect(og); og.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.34);
+
+    // 3. the bark. Unburnt fuel going off in the pipe on the overrun: a handful of
+    //    uneven pops, never the same count or spacing twice, thrown out through the
+    //    world bus so the gorge and the village walls answer them back. The first pop
+    //    is the loudest and gets a low thump under it; the rest are the tail.
+    const pops = 2 + ((Math.random() * (1 + f * 4)) | 0);
+    let t = 0.045;
+    for (let i = 0; i < pops; i++) {
+      const a = (0.24 + 0.30 * f) * (i === 0 ? 1 : rnd(0.30, 0.80));
+      this._burst(buf, {
+        gain: a, cut: rnd(780, 2200), q: rnd(2.5, 7), dur: rnd(0.030, 0.075),
+        rate: CENT(rnd(-300, 300)), delay: t, pan: rnd(0.20, 0.80),
+      });
+      if (i === 0) this._burst(buf, { gain: 0.15 * f, cut: rnd(150, 240), q: 1.4, dur: 0.10, delay: t, pan: 0.35 });
+      t += rnd(0.026, 0.085);
+    }
   }
 
   // A stone off the floorpan.
