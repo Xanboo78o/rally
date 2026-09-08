@@ -53,7 +53,7 @@ scene.add(sun);
 const stage = new Stage();
 scene.add(buildStageMesh(THREE, stage));
 
-const { group: cockpit } = buildCockpit(THREE);
+const { group: cockpit, mat: hoodMat } = buildCockpit(THREE);
 camera.add(cockpit);
 
 // Interior is a DOM overlay now; these are the bits the sim drives.
@@ -76,6 +76,7 @@ let best = parseFloat(localStorage.getItem('rally.best') || '0') || 0;
 let noteSeg = -1, noteUntil = 0;
 let bestAir = parseFloat(localStorage.getItem('rally.air') || '0') || 0;
 let camShake = 0;
+let hoodDirt = 0;
 
 const controls = new Controls($('app'), wheel, () => {
   if (car.downshift()) flash($('shiftLight'));
@@ -117,6 +118,8 @@ function resetRun() {
   car.rolled = false; car.rollSpin = 0; car.landingHit = 0;
   wheel.pos = 0; wheel.target = 0; wheel.release();
   glass.clear();
+  hoodDirt = 0;
+  hoodMat.color.setRGB(1, 1, 1);
   timer = 0; timing = false; finished = false;
   noteSeg = -1; noteUntil = 0;
   $('finish').classList.remove('show');
@@ -268,6 +271,13 @@ function render(dtReal) {
 
   // The rim visibly lags your thumb, and unwinds on its own when you let go.
   rimEl.setAttribute('transform', 'rotate(' + (wheel.pos * VISUAL_LOCK * 57.2958).toFixed(2) + ')');
+
+  // The bonnet picks up muck the same way the glass does, and it never comes off.
+  if (!car.airborne && car.speedFactor > 0.08) {
+    hoodDirt = Math.min(1, hoodDirt + dtReal * car.speedFactor * (ground.onRoad ? 0.012 : 0.16));
+    const t = 1 - hoodDirt * 0.42;
+    hoodMat.color.setRGB(t, t * 0.985, t * 0.95);
+  }
 
   glass.update(dtReal, car.speedFactor, ground.onRoad);
   glass.speed = car.speedFactor;
