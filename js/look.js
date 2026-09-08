@@ -8,10 +8,13 @@
 // because nobody holds a phone at the same angle twice.
 
 export const LOOK = {
-  gain: 1.15,        // degrees of head movement per degree of phone tilt
-  maxDeg: 22,        // clamp, so you can't lose the road entirely
-  deadDeg: 1.6,      // ignore hand tremble
-  smooth: 0.11,      // seconds
+  // THE knob. Degrees of head movement per degree of phone tilt. Deliberate tilts
+  // should read; carrying the phone around should not. Raise toward 1 for a big
+  // swimmy look, drop toward 0.2 to make it barely there.
+  gain: 0.40,
+  maxDeg: 12,        // clamp, so you can't lose the road entirely
+  deadDeg: 3.0,      // ignore hand tremble entirely before anything moves
+  smooth: 0.20,      // seconds. Higher = more damped, less sloshing about.
   parallax: 1.25,    // interior moves this much more than the world — the depth cue
   invert: false,     // flip if it turns out backwards on his phone
 };
