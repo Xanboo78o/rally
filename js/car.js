@@ -42,8 +42,12 @@ export const CAR = {
                         // car rolls 3-7 degrees.
   rollTrip: 8.5,        // sideways m/s that tips the car when a wheel digs in off-road
   rollLanding: 0.90,    // landing severity that puts it on its roof
-  tumbleBounce: 0.32,   // how much of the vertical speed comes back off each impact
-  tumbleDrag: 1.15,     // how fast it slides to a stop once it's over
+  // Rigid-body wreck. Half-extents of the shell, the moment of inertia per unit mass,
+  // and how bouncy / grippy the panels are against the ground.
+  boxW: 0.85, boxH: 0.62, boxL: 1.95,
+  inertia: 1.55,
+  restitution: 0.30,
+  bodyFriction: 0.95,
 
   gravity: 22.5,        // exaggerated, so jumps come down decisively
   airYaw: 1.35,         // how much the wheel can rotate you in mid-air
@@ -65,8 +69,12 @@ export class Car {
     this._dsCool = 0;
     this.rolled = false;
     this.settled = false;    // finished tumbling and come to rest
-    this.tumble = 0;         // accumulated barrel-roll angle, keeps going past 2pi
-    this.tumbleRate = 0;
+    // Orientation as a quaternion so it can tumble on any axis, not just roll.
+    this.q = { x: 0, y: 0, z: 0, w: 1 };
+    this.wx = 0; this.wy = 0; this.wz = 0;   // angular velocity, world space, rad/s
+    this.rollTime = 0;
+    this._rest = 0;
+    this._wasContact = false;
     this.impact = 0;         // set on each ground hit, consumed for a crunch
     this.accelLong = 0;
     this.pitch = 0;        // visual only, from suspension + air
@@ -76,9 +84,7 @@ export class Car {
   get speed() { return Math.hypot(this.vf, this.vr); }
   get speedFactor() { return Math.min(1, this.speed / CAR.topSpeed); }
   get slip() { return Math.atan2(this.vr, Math.max(1, Math.abs(this.vf))); }
-  // What the camera should actually roll by: the full tumble once it's over, the
-  // gentle cornering lean otherwise.
-  get bodyRoll() { return this.rolled ? this.tumble : this.roll * 0.75; }
+  get bodyRoll() { return this.roll * 0.75; }
   // Consume the one-shot impact magnitude.
   takeImpact() { const i = this.impact; this.impact = 0; return i; }
 
@@ -89,43 +95,144 @@ export class Car {
     return true;
   }
 
-  // Once it's over, it's a rag doll: gravity, bounce, tumble, slide to a stop. None of
-  // the driving model applies any more, so this runs instead of it rather than alongside.
+  // Once it's over it is a rigid body, not an animation. Eight corners of the shell
+  // are tested against the ground every tick; any that are through it get a proper
+  // contact impulse, which changes both the linear velocity AND the spin about the
+  // centre of mass. So it lands on a corner and that corner flips it, it can end up
+  // on its roof, and it settles because the impulses take the energy out — none of
+  // that is scripted.
   _tumbleStep(dt, ground) {
-    this.vy -= CAR.gravity * dt;
-    this.y += this.vy * dt;
+    // --- integrate orientation from angular velocity ---------------------------
+    const q = this.q;
+    const hx = this.wx * dt * 0.5, hy = this.wy * dt * 0.5, hz = this.wz * dt * 0.5;
+    const nx = q.w * hx + q.y * hz - q.z * hy;
+    const ny = q.w * hy + q.z * hx - q.x * hz;
+    const nz = q.w * hz + q.x * hy - q.y * hx;
+    const nw = -(q.x * hx + q.y * hy + q.z * hz);
+    q.x += nx; q.y += ny; q.z += nz; q.w += nw;
+    const inv = 1 / Math.hypot(q.x, q.y, q.z, q.w);
+    q.x *= inv; q.y *= inv; q.z *= inv; q.w *= inv;
 
-    if (this.y <= ground.height) {
-      this.y = ground.height;
-      if (this.vy < -2.2) {
-        this.impact = Math.max(this.impact, Math.min(1, -this.vy / 14));
-        this.vy = -this.vy * CAR.tumbleBounce;
-        this.tumbleRate *= 0.82;
-        this.vf *= 0.74;
-      } else {
-        this.vy = 0;
-        this.tumbleRate *= Math.exp(-2.4 * dt);
+    // --- gravity ---------------------------------------------------------------
+    this.vy -= CAR.gravity * dt;
+
+    // world velocity of the centre of mass
+    let vx = this.vf * Math.sin(this.yaw) + this.vr * Math.cos(this.yaw);
+    let vz = this.vf * Math.cos(this.yaw) - this.vr * Math.sin(this.yaw);
+    let vy = this.vy;
+
+    // centre of mass sits a body-height above the wheels
+    let cx = this.x, cy = this.y + CAR.boxH, cz = this.z;
+    cx += vx * dt; cy += vy * dt; cz += vz * dt;
+
+    // --- contacts: every corner of the shell ----------------------------------
+    const I = CAR.inertia;
+    let worstPen = 0;
+
+    // Find every corner that's through the ground first, so the impulses can be
+    // shared between them properly instead of the first one taking the whole hit.
+    const contacts = [];
+    for (let i = 0; i < 8; i++) {
+      const lx = (i & 1 ? 1 : -1) * CAR.boxW;
+      const ly = (i & 2 ? 1 : -1) * CAR.boxH;
+      const lz = (i & 4 ? 1 : -1) * CAR.boxL;
+      const r = this.rotate(lx, ly, lz);
+      const pen = ground.height - (cy + r.y);
+      if (pen > 0) { contacts.push(r); worstPen = Math.max(worstPen, pen); }
+    }
+    const hit = contacts.length;
+    // NOT divided between corners. denom already carries the rotational effective mass
+    // for each contact point, so splitting it again left contacts unresolved: the body
+    // sank, the position fix teleported it back out, and that handed it free energy
+    // every tick — the spin climbed instead of decaying.
+    const share = 1;
+
+    for (const r of contacts) {
+      // velocity of that corner = linear + spin about the centre of mass
+      const pvy = vy + (this.wz * r.x - this.wx * r.z);
+      if (pvy >= 0) continue;
+
+      // Restitution only above a threshold. Below it the body must NOT bounce, or it
+      // trades tiny hops with the ground forever and never comes to rest.
+      const e = -pvy > 2.0 ? CAR.restitution : 0;
+      const denom = 1 + (r.x * r.x + r.z * r.z) / I;
+      const j = (-(1 + e) * pvy / denom) * share;
+      vy += j;
+      this.wx += (-r.z * j) / I;
+      this.wz += (r.x * j) / I;
+
+      // friction: panels dragging on dirt, which is what actually stops it
+      const pvx = vx + (this.wy * r.z - this.wz * r.y);
+      const pvz = vz + (this.wx * r.y - this.wy * r.x);
+      const tmag = Math.hypot(pvx, pvz);
+      if (tmag > 0.01) {
+        const jf = Math.min(CAR.bodyFriction * Math.abs(j), tmag * 0.5);
+        vx -= (pvx / tmag) * jf;
+        vz -= (pvz / tmag) * jf;
+        this.wy -= ((r.x * (pvz / tmag) - r.z * (pvx / tmag)) * jf) / I;
       }
     }
 
-    this.tumble += this.tumbleRate * dt;
-    this.tumbleRate *= Math.exp(-0.42 * dt);
-    this.yaw += this.yawRate * dt;
-    this.yawRate *= Math.exp(-1.3 * dt);
-    this.vf *= Math.exp(-CAR.tumbleDrag * dt);
-    this.vr *= Math.exp(-CAR.tumbleDrag * dt);
+    // Allow a little penetration (slop) and only take out a fraction of the excess, so
+    // resting contact doesn't jitter and the correction can't act as an energy source.
+    if (worstPen > 0.015) cy += (worstPen - 0.015) * 0.30;
 
-    const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    this.x += (this.vf * s + this.vr * c) * dt;
-    this.z += (this.vf * c - this.vr * s) * dt;
-
-    const wantPitch = Math.sin(this.tumble * 0.63) * 0.30;
-    this.pitch += (wantPitch - this.pitch) * Math.min(1, 5 * dt);
-
-    if (!this.settled && Math.abs(this.tumbleRate) < 0.55 && this.speed < 1.6
-        && this.y <= ground.height + 0.05) {
-      this.settled = true;
+    // An impact is ARRIVING at the ground, not being on it. Without this every tick
+    // spent in contact counted as a hit and it crunched ~2000 times per roll.
+    const touching = hit > 0;
+    if (touching && !this._wasContact) {
+      const impact = Math.min(1, -Math.min(0, this.vy) / 13);
+      if (impact > 0.10) this.impact = Math.max(this.impact, impact);
     }
+    this._wasContact = touching;
+
+    // --- write back ------------------------------------------------------------
+    this.vy = vy;
+    this.x = cx; this.z = cz; this.y = cy - CAR.boxH;
+    this.vf = vx * Math.sin(this.yaw) + vz * Math.cos(this.yaw);
+    this.vr = vx * Math.cos(this.yaw) - vz * Math.sin(this.yaw);
+
+    // A wreck has a top tumbling speed; without a ceiling a bad solve can run away.
+    const spinMag = Math.hypot(this.wx, this.wy, this.wz);
+    if (spinMag > 13) {
+      const s = 13 / spinMag;
+      this.wx *= s; this.wy *= s; this.wz *= s;
+    }
+
+    // air drag on the spin, so it doesn't windmill forever
+    const spinDamp = Math.exp(-(hit ? 2.6 : 0.15) * dt);
+    this.wx *= spinDamp; this.wy *= spinDamp; this.wz *= spinDamp;
+
+    // Resting: once it's slow and touching, bleed the last of it out hard, or the
+    // solver trades tiny impulses back and forth forever and it never sleeps.
+    let spin = Math.hypot(this.wx, this.wy, this.wz);
+    const slide = Math.hypot(this.vf, this.vr);
+    if (hit && spin < 3.6 && slide < 7) {
+      const k = Math.exp(-5.5 * dt);
+      this.wx *= k; this.wy *= k; this.wz *= k;
+      this.vf *= k; this.vr *= k;
+      spin = Math.hypot(this.wx, this.wy, this.wz);
+    }
+
+    this.rollTime = (this.rollTime || 0) + dt;
+    if (!this.settled) {
+      const still = hit && spin < 0.95 && Math.hypot(this.vf, this.vr) < 1.4 && Math.abs(this.vy) < 1.4;
+      this._rest = still ? (this._rest || 0) + dt : 0;
+      if (this._rest > 0.25 || this.rollTime > 5.0) this.settled = true;
+    }
+  }
+
+  // Rotate a body-local vector into the world by the current orientation.
+  rotate(x, y, z) {
+    const { x: qx, y: qy, z: qz, w } = this.q;
+    const tx = 2 * (qy * z - qz * y);
+    const ty = 2 * (qz * x - qx * z);
+    const tz = 2 * (qx * y - qy * x);
+    return {
+      x: x + w * tx + (qy * tz - qz * ty),
+      y: y + w * ty + (qz * tx - qx * tz),
+      z: z + w * tz + (qx * ty - qy * tx),
+    };
   }
 
   // ground: { height, onRoad } sampled from the stage at the car's position.
@@ -245,11 +352,17 @@ export class Car {
     const trippedOffRoad = !ground.onRoad && Math.abs(this.vr) > CAR.rollTrip && this.speed > 11;
     if (trippedOffRoad || this.landingHit > CAR.rollLanding) {
       this.rolled = true;
-      // Barrel-rolls the way it was thrown, faster the harder you were going, and it
-      // gets launched off the ground so the first impact is a real one.
-      this.tumbleRate = Math.sign(this.vr || 1) * (7.6 + this.speed * 0.19);
-      this.yawRate += Math.sign(this.vr || 1) * 1.6;
-      this.vy = 3.4;
+      // Hand the rigid body its starting state: current heading as the orientation,
+      // and a spin about the roll axis from however sideways it was going. Everything
+      // after this is contacts and gravity.
+      const h = this.yaw * 0.5;
+      this.q = { x: 0, y: Math.sin(h), z: 0, w: Math.cos(h) };
+      const dir = Math.sign(this.vr || 1);
+      const f = this.rotate(0, 0, 1);
+      this.wx = f.x * dir * (5.5 + this.speed * 0.16);
+      this.wz = f.z * dir * (5.5 + this.speed * 0.16);
+      this.wy = dir * 1.1;
+      this.vy = 3.2;
       this.impact = 0.8;
     }
 

@@ -48,6 +48,38 @@ export class Sound {
     return buf;
   }
 
+  // One full four-stroke cycle at the given rpm: four firings, each a decaying
+  // resonance plus a burst of noise, unevenly spaced and unevenly loud.
+  _engineCycle(rpm, cylinders = 4) {
+    const sr = this.ctx.sampleRate;
+    const cycle = 120 / rpm;                    // seconds for two crank revolutions
+    const n = Math.max(64, Math.floor(sr * cycle));
+    const buf = this.ctx.createBuffer(1, n, sr);
+    const d = buf.getChannelData(0);
+    let s = 9871 + (rpm | 0);
+    const rand = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+
+    for (let c = 0; c < cylinders; c++) {
+      const jitter = (rand() - 0.5) * 0.06;     // never perfectly even
+      const at = Math.floor(n * ((c + 0.5) / cylinders + jitter));
+      const amp = 0.72 + rand() * 0.45;
+      const fRes = 95 + rand() * 85;            // exhaust resonance for this pot
+      const decay = 0.0034 + rand() * 0.0028;
+      const len = Math.min(n, Math.floor(sr * decay * 7));
+      for (let i = 0; i < len; i++) {
+        const t = i / sr;
+        const env = Math.exp(-t / decay);
+        const tone = Math.sin(2 * Math.PI * fRes * t) + 0.45 * Math.sin(2 * Math.PI * fRes * 2.6 * t);
+        const hiss = (rand() * 2 - 1) * 0.55 * Math.exp(-t / (decay * 0.4));
+        d[(at + i) % n] += amp * env * (tone * 0.55 + hiss);
+      }
+    }
+    let peak = 0;
+    for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(d[i]));
+    if (peak > 0) for (let i = 0; i < n; i++) d[i] /= peak;
+    return buf;
+  }
+
   start() {
     if (this.ready) return;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -55,40 +87,53 @@ export class Sound {
     const ctx = new AC();
     this.ctx = ctx;
 
+    // A limiter on the end means everything below can be driven properly loud without
+    // the peaks clipping. The old chain sat at 0.6 with tiny bus levels under it, which
+    // is why it was barely audible.
+    this.limiter = ctx.createDynamicsCompressor();
+    this.limiter.threshold.value = -10;
+    this.limiter.knee.value = 6;
+    this.limiter.ratio.value = 8;
+    this.limiter.attack.value = 0.004;
+    this.limiter.release.value = 0.12;
+    this.limiter.connect(ctx.destination);
+
     this.master = ctx.createGain();
-    this.master.gain.value = 0.6;
-    this.master.connect(ctx.destination);
+    this.master.gain.value = 1.5;
+    this.master.connect(this.limiter);
 
     // ---- ENGINE ---------------------------------------------------------------
-    // Firing frequency, not crank speed: a four-pot fires twice a revolution. Saw
-    // fundamental plus harmonics through a filter that opens up under load.
+    // Sawtooth oscillators sound like a synth because an engine isn't a tone — it's a
+    // string of combustion pulses. So the buffer below IS a firing sequence: four
+    // bangs per cycle, each a sharp resonant burst that decays, with the timing and
+    // level of each slightly uneven the way a real one never fires perfectly evenly.
+    // Two of them at different reference revs, crossfaded, so neither gets stretched
+    // far enough to sound like a tape slowing down.
     this.engBus = ctx.createGain(); this.engBus.gain.value = 0;
     this.engFilter = ctx.createBiquadFilter();
     this.engFilter.type = 'lowpass';
     this.engFilter.frequency.value = 900;
-    this.engFilter.Q.value = 1.1;
+    this.engFilter.Q.value = 1.5;
     this.engFilter.connect(this.engBus);
     this.engBus.connect(this.master);
 
-    this.engOscs = [];
-    for (const [mult, type, lvl] of [[0.5, 'square', 0.34], [1, 'sawtooth', 1.0], [2, 'sawtooth', 0.42], [3, 'sawtooth', 0.18]]) {
-      const o = ctx.createOscillator();
-      o.type = type;
-      const g = ctx.createGain(); g.gain.value = lvl;
-      o.connect(g); g.connect(this.engFilter);
-      o.start();
-      this.engOscs.push({ o, mult });
+    this.engLayers = [];
+    for (const refRpm of [1500, 4600]) {
+      const src = ctx.createBufferSource();
+      src.buffer = this._engineCycle(refRpm);
+      src.loop = true;
+      const g = ctx.createGain(); g.gain.value = 0;
+      src.connect(g); g.connect(this.engFilter);
+      src.start();
+      this.engLayers.push({ src, g, refRpm });
     }
-    // Induction roar so it isn't a pure tone.
-    this.engNoise = ctx.createBufferSource();
-    this.engNoise.buffer = this._noise(2, 7);
-    this.engNoise.loop = true;
-    const engNf = ctx.createBiquadFilter();
-    engNf.type = 'bandpass'; engNf.frequency.value = 420; engNf.Q.value = 0.8;
-    this.engNoiseGain = ctx.createGain(); this.engNoiseGain.gain.value = 0.5;
-    this.engNoise.connect(engNf); engNf.connect(this.engNoiseGain);
-    this.engNoiseGain.connect(this.engFilter);
-    this.engNoise.start();
+
+    // Low-order body boom, so it has some weight underneath the pulses.
+    this.engSub = ctx.createOscillator();
+    this.engSub.type = 'sine';
+    this.engSubG = ctx.createGain(); this.engSubG.gain.value = 0;
+    this.engSub.connect(this.engSubG); this.engSubG.connect(this.master);
+    this.engSub.start();
 
     // ---- SURFACE BANKS --------------------------------------------------------
     // One loop per material, all running, crossfaded by the surface parameter.
@@ -153,18 +198,24 @@ export class Sound {
     const rpm = Math.max(0, Math.min(1, p.rpm01 || 0));
     const slip = Math.max(0, Math.min(1, p.slip01 || 0));
 
-    // ---- engine: firing frequency and how open the filter is ------------------
-    const f0 = 42 + rpm * 148;
-    for (const { o, mult } of this.engOscs) o.frequency.setTargetAtTime(f0 * mult, now, 0.035);
-    this.engFilter.frequency.setTargetAtTime(500 + rpm * 2600 + sp * 700, now, 0.05);
-    this.engBus.gain.setTargetAtTime(0.115 * (0.42 + 0.58 * rpm) * duck, now, 0.04);
-    this.engNoiseGain.gain.setTargetAtTime(0.22 + rpm * 0.5, now, 0.06);
+    // ---- engine: play the firing sequence at the right rate --------------------
+    const revs = 850 + rpm * 6400;
+    for (const L of this.engLayers) {
+      L.src.playbackRate.setTargetAtTime(revs / L.refRpm, now, 0.03);
+      // Crossfade toward whichever reference is closer, in octaves.
+      const dist = Math.abs(Math.log2(revs / L.refRpm));
+      L.g.gain.setTargetAtTime(Math.max(0, 1 - dist * 0.85), now, 0.05);
+    }
+    this.engFilter.frequency.setTargetAtTime(620 + rpm * 3400 + sp * 900, now, 0.05);
+    this.engBus.gain.setTargetAtTime(0.34 * (0.45 + 0.55 * rpm) * duck, now, 0.04);
+    this.engSub.frequency.setTargetAtTime(revs / 60 * 2, now, 0.04);
+    this.engSubG.gain.setTargetAtTime(0.075 * (0.3 + 0.7 * rpm) * duck, now, 0.05);
 
     // ---- surfaces: crossfade the banks, drive level and pitch from speed -------
     if (p.surface && this.surf[p.surface]) this.surface = p.surface;
     for (const [name, s] of Object.entries(this.surf)) {
       const on = name === this.surface ? 1 : 0;
-      const level = 0.10 * s.cfg.g * Math.pow(sp, 0.75) * duck * on;
+      const level = 0.26 * s.cfg.g * Math.pow(sp, 0.75) * duck * on;
       s.g.gain.setTargetAtTime(level, now, 0.15);         // crossfade, never a cut
       s.src.playbackRate.setTargetAtTime(0.72 + sp * 0.75, now, 0.10);
       s.f.frequency.setTargetAtTime(s.cfg.f * (0.72 + sp * 0.6), now, 0.10);
@@ -177,11 +228,11 @@ export class Sound {
     }
 
     // ---- slip ------------------------------------------------------------------
-    this.slipG.gain.setTargetAtTime(0.085 * slip * Math.pow(sp, 0.6) * duck, now, 0.08);
+    this.slipG.gain.setTargetAtTime(0.20 * slip * Math.pow(sp, 0.6) * duck, now, 0.08);
     this.slipF.frequency.setTargetAtTime(1700 + slip * 1900, now, 0.08);
 
     // ---- wind: the only thing left when the wheels leave the ground ------------
-    this.windG.gain.setTargetAtTime(0.014 * sp + 0.085 * sp * (1 - duck), now, 0.05);
+    this.windG.gain.setTargetAtTime(0.05 * sp + 0.22 * sp * (1 - duck), now, 0.05);
   }
 
   // --- one-shots --------------------------------------------------------------
@@ -217,19 +268,19 @@ export class Sound {
     o.frequency.exponentialRampToValueAtTime(rnd(32, 44), now + 0.16);
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.26 * (0.35 + f), now + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.46 * (0.35 + f), now + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
     o.connect(g); g.connect(this.master);
     o.start(now); o.stop(now + 0.4);
 
-    this._burst(buf, { gain: 0.16 * f, cut: rnd(260, 420), q: 1.1, dur: 0.20, rate });
-    if (f > 0.45) this._burst(buf, { gain: 0.07 * f, cut: rnd(2100, 3400), q: 2.4, dur: 0.10, rate: rate * 1.4, delay: 0.012 });
+    this._burst(buf, { gain: 0.30 * f, cut: rnd(260, 420), q: 1.1, dur: 0.20, rate });
+    if (f > 0.45) this._burst(buf, { gain: 0.14 * f, cut: rnd(2100, 3400), q: 2.4, dur: 0.10, rate: rate * 1.4, delay: 0.012 });
   }
 
   // A stone off the floorpan.
   _ping(sp) {
     const buf = this.hitBufs[(Math.random() * this.hitBufs.length) | 0];
-    this._burst(buf, { gain: 0.020 + 0.03 * sp, cut: rnd(1700, 4200), q: rnd(5, 12), dur: rnd(0.04, 0.10), rate: CENT(rnd(-200, 200)) });
+    this._burst(buf, { gain: 0.045 + 0.06 * sp, cut: rnd(1700, 4200), q: rnd(5, 12), dur: rnd(0.04, 0.10), rate: CENT(rnd(-200, 200)) });
   }
 
   // Rolling it: panel crush plus glass and metal. Several detuned resonances stacked,
@@ -249,17 +300,17 @@ export class Sound {
     o.frequency.exponentialRampToValueAtTime(rnd(26, 38), now + 0.26);
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.30 * f, now + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.55 * f, now + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
     o.connect(g); g.connect(this.master);
     o.start(now); o.stop(now + 0.6);
 
     // tearing sheet metal
-    this._burst(buf, { gain: 0.20 * f, cut: rnd(700, 1200), q: 0.9, dur: rnd(0.22, 0.40), rate: CENT(rnd(-150, 150)) });
+    this._burst(buf, { gain: 0.38 * f, cut: rnd(700, 1200), q: 0.9, dur: rnd(0.22, 0.40), rate: CENT(rnd(-150, 150)) });
     // ringing panels and glass
     for (let i = 0; i < 3; i++) {
       this._burst(buf, {
-        gain: (0.05 + 0.05 * f) / (i + 1), cut: rnd(1800, 5200), q: rnd(8, 22),
+        gain: (0.10 + 0.10 * f) / (i + 1), cut: rnd(1800, 5200), q: rnd(8, 22),
         dur: rnd(0.10, 0.30), rate: CENT(rnd(-250, 250)), delay: rnd(0, 0.07),
       });
     }
