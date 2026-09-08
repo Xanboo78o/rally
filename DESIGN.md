@@ -157,16 +157,68 @@ there. Landing straight keeps your speed; landing sideways doesn't.
 **Co-driver.** Recorded, not TTS — TTS can't do the flat, fast, clipped rally cadence,
 or the voice cracking when you're about to die. Pace notes are a fixed vocabulary
 (~60–100 short clips, sequenced live), so one co-driver is an afternoon with a phone mic.
+The recording script — every clip, every intensity — is `VOICELINES.md`.
 Different accents become different *characters* with different call timing: early and
 vague, late and precise, calm, panicky. Friends can record their own.
 
 ---
 
+## The stage, and the filters
+
+The prototype stage is **8.9 km, about five minutes**, hand-authored corner by corner in
+`js/stage.js` (nothing generated — only the daily *ruleset* ever gets rolled). It's also
+the tutorial, and it teaches in the only voice the game has: the co-driver. The first
+time a technique is the only way through, he says so out loud; after that he trusts you
+and just calls the corner.
+
+| | place | the road | what it teaches |
+|---|---|---|---|
+| 1 | **THE DROP ZONE** | wide, fast, first light | the wheel is heavy — start turning early |
+| 2 | **THE PINES** | narrow, dark, trees on the edge | the handbrake, on a hairpin with no room |
+| 3 | **THE OLD ROAD** | fast sweepers, gold ruins | the downshift, where a handbrake would kill you |
+| 4 | **THE VILLAGE** | square 90s between walls | placing the car to the metre |
+| 5 | **THE GORGE** | linked corners, rock, no run-off | rhythm — a corner entered wrong stays wrong |
+| 6 | **THE CLIMB** | five stacked hairpins | all of it, uphill |
+| 7 | **THE PLATEAU** | flat out, heat haze, **the big jump** | landing straight |
+| 8 | **THE DESCENT** | downhill, blind crests, evening | actually trusting the notes |
+
+**Open question, not settled:** whether a daily stage should be a *tour* like this at all.
+A real rally stage is one kind of road for five minutes, and a stage you learn deeply —
+where mastery is knowing the third left tightens — is a different game from one that
+keeps showing you new things. This version is the tour; it isn't a decision.
+
+### Filters
+
+`js/atmos.js` is one table where **each entry is a place, not a setting** — it carries a
+look *and* a sound, and the stage crossfades between them over the last 150 m before a
+boundary, at the same metre every run. So the fog closes in as the gorge arrives and the
+room grows around you at the same moment.
+
+- **Look** (`js/post.js`, one full-screen pass): depth-based **distance blur**, so the far
+  side of the valley goes soft while the stones by your wheel stay sharp; **heat shimmer**
+  over the plateau, masked by distance because it's the column of air between you and the
+  thing that wobbles; then exposure, tint, saturation, contrast, vignette and grain.
+  The windscreen is deliberately *not* in the pass — dust sitting a foot from your eye
+  should not be blurred by two hundred metres of haze.
+- **Sound** (`js/audio.js`): everything outside the car goes through a **room** — a short
+  pre-delay into three tuned feedback lines, panned apart — whose size, decay, darkness
+  and wet level all come from the same table. And it's **stereo**: the gravel bed is two
+  copies of one recording pulled left and right so they never correlate, stones scatter
+  across the field, the slide moves to the side the back end went, and dropping a wheel
+  off makes the noise come from *that side of the car*, which is the cue that tells you
+  which way to correct when you can't see it.
+- One lowpass on the world bus is the bodywork you're sitting in. It shuts down as the
+  wheels leave the ground, so takeoff goes *muffled and distant* rather than merely quiet.
+
+Keys **1–8** pin a filter and **0** hands it back to the stage, so a look can be judged on
+its own instead of only in the stretch of road where it happens to occur. **P** turns the
+whole pass off, and `?post=0` does the same on a phone.
+
 ## What's actually built
 
-Only the feel prototype: one hand-authored stage with a jump, the wheel model, the
-handbrake and downshift, and the air-time stack. No traps, no calendar, no multiplayer,
-no upgrades, no menus. The open question it exists to answer is the **resistance curve** —
+Only the feel prototype: the five-minute stage above, the wheel model, the handbrake and
+downshift, the air-time stack, and the per-place filters. No traps, no calendar, no
+multiplayer, no upgrades, no menus. The open question it exists to answer is the **resistance curve** —
 how much lock one thumb sweep buys you — which can only be found by holding it.
 
 Sound is a deliberate placeholder; per the standing rule the real noises get sourced from
