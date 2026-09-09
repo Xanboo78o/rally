@@ -40,7 +40,11 @@
 .phone .page.on { display: block; }
 .phone .page.home {
   overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-  padding: max(26px, env(safe-area-inset-top)) 16px max(26px, env(safe-area-inset-bottom));
+  /* Vertical panning belongs to the page. The grid opts back out only while a tile is
+     actually being dragged, which is the one moment it needs the finger to itself. */
+  touch-action: pan-y;
+  padding: max(26px, env(safe-area-inset-top)) 16px
+           calc(max(26px, env(safe-area-inset-bottom)) + 34px);
 }
 .phone.inApp .page.home { display: none; }
 
@@ -54,10 +58,11 @@
 }
 
 .phone .tile {
-  position: relative; margin: 0; padding: 0; color: inherit; font: inherit;
+  position: relative; margin: 0; padding: 0; font: inherit;
   display: flex; cursor: pointer;
-  background: rgba(14,17,20,.52);
-  border: 1px solid rgba(242,239,233,.13);
+  color: var(--tx, #f2efe9);
+  background: var(--fill, rgba(14,17,20,.52));
+  border: 1px solid var(--out, rgba(242,239,233,.13));
   border-radius: 20px;
   backdrop-filter: blur(14px) saturate(1.1);
   -webkit-backdrop-filter: blur(14px) saturate(1.1);
@@ -65,29 +70,45 @@
   box-shadow: 0 6px 22px rgba(0,0,0,.32);
   transition: transform .12s ease;
 }
+
+/* The design. Its own layer under the content, so a pattern never fights the text and
+   the fill still shows through the gaps. */
+.phone .tile::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+}
+.phone .tile.pat-dots::before {
+  background-image: radial-gradient(circle, var(--pat, rgba(242,239,233,.5)) 2.1px, transparent 2.5px);
+  background-size: 15px 15px;
+}
+.phone .tile.pat-stripes::before {
+  background-image: repeating-linear-gradient(45deg,
+    var(--pat, rgba(242,239,233,.5)) 0 6px, transparent 6px 15px);
+}
+.phone .tile > * { position: relative; z-index: 1; }
 .phone .tile:active { transform: scale(.965); }
 .phone .tile.dragging { transition: none; z-index: 5; box-shadow: 0 18px 46px rgba(0,0,0,.5); }
 
 /* app icon */
 .phone .tile.app {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  background: rgba(14,17,20,.60);
+  background: var(--fill, rgba(14,17,20,.60));
 }
 .phone .tile.app .ico {
   width: 34px; height: 34px; display: grid; place-items: center;
-  color: var(--red, #d8433a); font: 300 30px/1 ui-sans-serif, system-ui, sans-serif;
+  color: var(--ac, var(--red, #d8433a)); font: 300 30px/1 ui-sans-serif, system-ui, sans-serif;
 }
 .phone .tile.app .ico svg { width: 100%; height: 100%; fill: currentColor; }
 .phone .tile.app .lbl {
   font: 700 8.5px/1 ui-monospace, Menlo, monospace; letter-spacing: .10em;
-  color: rgba(242,239,233,.72); text-align: center; padding: 0 4px;
+  color: color-mix(in srgb, currentColor 74%, transparent);
+  text-align: center; padding: 0 4px;
 }
 .phone .tile.add { border-style: dashed; background: rgba(14,17,20,.28); }
 .phone .tile.add .ico { color: rgba(242,239,233,.5); }
 
 .phone .badge {
   position: absolute; top: 7px; right: 8px; min-width: 17px; height: 17px; padding: 0 4px;
-  border-radius: 9px; background: var(--red, #d8433a); color: #fff;
+  border-radius: 9px; background: var(--ac, var(--red, #d8433a)); color: #fff;
   font: 800 10px/17px ui-monospace, Menlo, monospace; text-align: center; font-style: normal;
 }
 
@@ -96,14 +117,14 @@
 .phone .wtop { display: flex; align-items: baseline; gap: 8px; }
 .phone .wtop b {
   font: 800 8.5px/1 ui-monospace, Menlo, monospace; letter-spacing: .18em;
-  color: rgba(242,239,233,.58);
+  color: color-mix(in srgb, currentColor 60%, transparent);
 }
 .phone .wtop .left {
   margin-left: auto; font: 700 8.5px/1 ui-monospace, Menlo, monospace;
-  letter-spacing: .1em; color: var(--red, #d8433a);
+  letter-spacing: .1em; color: var(--ac, var(--red, #d8433a));
 }
 .phone .sub { font: 700 10px/1.5 ui-monospace, Menlo, monospace; letter-spacing: .09em; }
-.phone .dim { color: rgba(242,239,233,.52); }
+.phone .dim { color: color-mix(in srgb, currentColor 54%, transparent); }
 
 .phone .stageW .place {
   margin-top: 8px; font: 900 30px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em;
@@ -111,24 +132,24 @@
 .phone .stageW .wrow {
   margin-top: auto; display: flex; gap: 12px; align-items: baseline;
   font: 700 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .1em;
-  color: rgba(242,239,233,.6);
+  color: color-mix(in srgb, currentColor 62%, transparent);
 }
-.phone .stageW .best b { color: var(--ink, #f2efe9); font-variant-numeric: tabular-nums; }
+.phone .stageW .best b { color: currentColor; font-variant-numeric: tabular-nums; }
 .phone .stageW .go {
   position: absolute; right: 14px; bottom: 12px;
   font: 900 12px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .18em;
-  color: var(--red, #d8433a);
+  color: var(--ac, var(--red, #d8433a));
 }
 .phone .stageW .go i { font-style: normal; font-size: 15px; }
 
 .phone .dailyW .streak { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; }
 .phone .dailyW .streak b {
   font: 900 40px/1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
-  color: var(--red, #d8433a);
+  color: var(--ac, var(--red, #d8433a));
 }
 .phone .dailyW .streak span {
   font: 800 8px/1.2 ui-monospace, Menlo, monospace; letter-spacing: .14em;
-  color: rgba(242,239,233,.55); max-width: 44px;
+  color: color-mix(in srgb, currentColor 58%, transparent); max-width: 44px;
 }
 .phone .dailyW .sub { margin-top: auto; }
 
@@ -137,9 +158,9 @@
   display: flex; align-items: baseline; gap: 7px; padding: 3px 0;
   font: 700 11px/1.3 ui-monospace, Menlo, monospace;
 }
-.phone .standW li i { font-style: normal; width: 12px; color: rgba(242,239,233,.45); }
+.phone .standW li i { font-style: normal; width: 12px; color: color-mix(in srgb, currentColor 48%, transparent); }
 .phone .standW li b { margin-left: auto; font-variant-numeric: tabular-nums; }
-.phone .standW li.me { color: var(--red, #d8433a); }
+.phone .standW li.me { color: var(--ac, var(--red, #d8433a)); }
 
 .phone .teamW .tname {
   margin-top: 8px; font: 900 17px/1.1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .05em;
@@ -149,21 +170,25 @@
 .phone .mgrW { flex-direction: row; align-items: center; gap: 10px; padding: 0 14px; }
 .phone .mgrW .line {
   font: 400 12px/1.3 ui-sans-serif, system-ui, sans-serif;
-  color: rgba(242,239,233,.82);
+  color: color-mix(in srgb, currentColor 86%, transparent);
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 .phone .mgrW .line b {
   font: 800 9px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em;
-  color: var(--red, #d8433a); margin-right: 6px;
+  color: var(--ac, var(--red, #d8433a)); margin-right: 6px;
 }
 .phone .av {
   flex: none; width: 28px; height: 28px; border-radius: 50%;
-  display: grid; place-items: center; background: var(--red, #d8433a); color: #fff;
+  display: grid; place-items: center; background: var(--ac, var(--red, #d8433a)); color: #fff;
   font: 900 13px/1 ui-sans-serif, system-ui, sans-serif;
 }
 
 /* -------------------------------------------------------------------- jiggle ---- */
-.phone .minus { display: none; }
+.phone .minus, .phone .paint { display: none; }
+/* Scrolling belongs to the page until you are actually rearranging. Only in jiggle
+   mode does a tile take the finger, because that is the only time a drag is meant. */
+.phone .tile { touch-action: pan-y; }
+.phone.jiggle .tile, .phone .tile.dragging { touch-action: none; }
 .phone.jiggle .tile { animation: jig .34s infinite ease-in-out alternate; }
 .phone.jiggle .tile:nth-child(2n) { animation-delay: -.17s; }
 .phone.jiggle .tile.dragging { animation: none; }
@@ -173,13 +198,62 @@
   width: 20px; height: 20px; border-radius: 50%; background: #f2efe9; color: #111;
   font: 900 15px/1 ui-sans-serif, system-ui, sans-serif; font-style: normal; z-index: 3;
 }
+.phone.jiggle .paint {
+  display: grid; place-items: center; position: absolute; top: 6px; right: 6px;
+  width: 20px; height: 20px; border-radius: 50%; background: #f2efe9; color: #111;
+  font: 900 10px/1 ui-sans-serif, system-ui, sans-serif; font-style: normal; z-index: 3;
+}
 @keyframes jig { from { transform: rotate(-.7deg); } to { transform: rotate(.7deg); } }
+
+/* ------------------------------------------------------------------- painting ---- */
+/* The tile editor: three colours and a design, per tile. */
+.phone .paintSheet .row { margin: 0 0 14px; }
+.phone .paintSheet .row > b {
+  display: block; margin-bottom: 7px;
+  font: 800 8.5px/1 ui-monospace, Menlo, monospace; letter-spacing: .18em;
+  color: rgba(242,239,233,.55);
+}
+.phone .swatches {
+  display: flex; gap: 7px; align-items: center; flex-wrap: nowrap;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.phone .swatches::-webkit-scrollbar { display: none; }
+.phone .swatches > * { flex: none; }
+.phone .swatches button {
+  width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  border: 2px solid rgba(242,239,233,.22); cursor: pointer;
+}
+.phone .swatches button.on { border-color: #f2efe9; transform: scale(1.12); }
+.phone .swatches .pick {
+  width: 30px; height: 30px; border-radius: 50%; overflow: hidden; position: relative;
+  border: 2px solid rgba(242,239,233,.22);
+  background: conic-gradient(#d8433a, #e8b23a, #6fbf5a, #4aa8d8, #8a6fd8, #d8433a);
+}
+.phone .swatches .pick input { position: absolute; inset: -8px; opacity: 0; cursor: pointer; }
+.phone .designs { display: flex; gap: 8px; }
+.phone .designs button {
+  flex: 1; height: 46px; border-radius: 12px; cursor: pointer;
+  border: 2px solid rgba(242,239,233,.16); background: #1b2027;
+  color: #f2efe9; font: 800 8px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px;
+}
+.phone .designs button.on { border-color: #f2efe9; }
+.phone .designs button.d-dots {
+  background-image: radial-gradient(circle, rgba(242,239,233,.55) 2.1px, transparent 2.5px);
+  background-size: 15px 15px;
+}
+.phone .designs button.d-stripes {
+  background-image: repeating-linear-gradient(45deg,
+    rgba(242,239,233,.55) 0 6px, transparent 6px 15px);
+}
 
 /* --------------------------------------------------------------------- sheet ---- */
 .phone .sheet { position: absolute; inset: 0; z-index: 8; background: rgba(4,6,8,.55); display: grid; align-items: end; }
 .phone .sheetIn {
   background: #14181d; border-top: 1px solid rgba(242,239,233,.14);
   border-radius: 22px 22px 0 0; padding: 18px 16px max(20px, env(safe-area-inset-bottom));
+  max-height: 76vh; overflow-y: auto; overscroll-behavior: contain;
 }
 .phone .sheetIn h3 { margin: 0 0 12px; font: 900 12px/1 ui-monospace, Menlo, monospace; letter-spacing: .2em; }
 .phone .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }

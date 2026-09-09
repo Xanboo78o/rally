@@ -63,6 +63,13 @@ const TILES = [
   { id: 'settings', kind: 'app', w: 1, h: 1, label: 'SETTINGS', icon: 'settings' },
 ];
 const BY_ID = Object.fromEntries(TILES.map(t => [t.id, t]));
+
+// Every tile carries three colours and a design, per Adam: text, fill, outline, and a
+// pattern behind them. `null` on a colour means "leave the built-in look alone", so an
+// untouched home screen still looks like the game rather than like a paint set.
+const PALETTE = ['#f2efe9', '#0d1013', '#d8433a', '#e8792a', '#e8c23a',
+  '#5fbf6a', '#2fb3a8', '#4a90d8', '#8a6fd8', '#e069a8'];
+const DESIGNS = [['none', 'PLAIN'], ['dots', 'DOTS'], ['stripes', 'STRIPES']];
 const DEFAULT_ON = ['stage', 'daily', 'standings', 'manager', 'messages', 'roadbook',
   'car', 'codriver', 'worlds', 'clips'];
 
@@ -116,10 +123,28 @@ export class Phone {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
     this.order = (s && s.order || DEFAULT_ON).filter(id => BY_ID[id]);
+    this.themes = (s && s.themes) || {};
     this.off = TILES.map(t => t.id).filter(id => !this.order.includes(id));
   }
   _saveLayout() {
-    try { localStorage.setItem(LS, JSON.stringify({ order: this.order })); } catch (e) {}
+    try {
+      localStorage.setItem(LS, JSON.stringify({ order: this.order, themes: this.themes }));
+    } catch (e) {}
+  }
+
+  // The three colours land as custom properties, so one write re-themes everything
+  // inside the tile — including the accent, which follows the text colour. Without that
+  // a green widget keeps a red DRIVE on it and looks broken rather than customised.
+  _applyTheme(node, id) {
+    const t = this.themes[id] || {};
+    node.classList.remove('pat-dots', 'pat-stripes');
+    if (t.design && t.design !== 'none') node.classList.add('pat-' + t.design);
+    const set = (k, v) => v ? node.style.setProperty(k, v) : node.style.removeProperty(k);
+    set('--tx', t.text);
+    set('--ac', t.text);
+    set('--fill', t.fill);
+    set('--out', t.outline);
+    set('--pat', t.pat);
   }
 
   // ---- render -----------------------------------------------------------------
@@ -149,6 +174,8 @@ export class Phone {
       n.appendChild(this['_w_' + t.id] ? this['_w_' + t.id]() : el('div', 'wbody', t.label));
     }
     n.appendChild(el('i', 'minus', '&minus;'));
+    n.appendChild(el('i', 'paint', '&#9673;'));
+    this._applyTheme(n, t.id);
     return n;
   }
 
@@ -243,25 +270,41 @@ export class Phone {
   }
 
   // ---- jiggle, drag, remove, add ------------------------------------------------
+  // A finger that has travelled is SCROLLING. The first version of this measured
+  // movementX/movementY, which do not exist on touch events — so every attempt to
+  // scroll sat still for 420ms and armed jiggle mode instead of moving the page. Never
+  // use movementX for touch; measure against where the finger went down.
   _jiggleWiring() {
-    let timer = null, drag = null;
+    const SLOP = 9;
+    let press = null, timer = null, drag = null;
 
-    const start = e => {
+    this.grid.addEventListener('pointerdown', e => {
       const tile = e.target.closest('.tile');
       if (!tile) return;
-      if (this.jiggling) { if (!tile.dataset.add) this._beginDrag(tile, e); return; }
-      timer = setTimeout(() => { timer = null; this.setJiggle(true); navigator.vibrate?.(12); }, 420);
-    };
-    const end = e => {
-      if (timer) { clearTimeout(timer); timer = null; this._tap(e); }
-    };
-    this.grid.addEventListener('pointerdown', start);
-    this.grid.addEventListener('pointerup', end);
-    this.grid.addEventListener('pointercancel', () => { clearTimeout(timer); timer = null; });
-    this.grid.addEventListener('pointermove', e => {
-      if (timer && (Math.abs(e.movementX) + Math.abs(e.movementY) > 6)) { clearTimeout(timer); timer = null; }
+      press = { tile, x: e.clientX, y: e.clientY, id: e.pointerId, moved: false };
+      if (this.jiggling) return;                    // already jiggling: this may be a drag
+      timer = setTimeout(() => {
+        timer = null; this.setJiggle(true); navigator.vibrate?.(12);
+      }, 420);
     });
-    // tapping the wallpaper leaves jiggle mode, the way it does everywhere else
+
+    this.grid.addEventListener('pointermove', e => {
+      if (!press || e.pointerId !== press.id) return;
+      if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) < SLOP) return;
+      press.moved = true;
+      if (timer) { clearTimeout(timer); timer = null; }   // scrolling, so let it scroll
+      if (this.jiggling && !drag && !press.tile.dataset.add) drag = this._beginDrag(press.tile, e);
+      if (drag) drag.move(e);
+    });
+
+    const finish = e => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (drag) { drag.end(); drag = null; }
+      else if (press && !press.moved && e.type === 'pointerup') this._tap(e);
+      press = null;
+    };
+    this.grid.addEventListener('pointerup', finish);
+    this.grid.addEventListener('pointercancel', finish);
     this.wall.addEventListener('pointerdown', () => this.setJiggle(false));
   }
 
@@ -277,6 +320,7 @@ export class Phone {
     const id = tile.dataset.id;
     if (this.jiggling) {
       if (e.target.closest('.minus')) this._remove(id);
+      else this._openPaint(id);
       return;
     }
     if (id === 'stage') return this.onDrive('stage');
@@ -310,36 +354,100 @@ export class Phone {
     this.root.appendChild(sheet);
   }
 
+  // Returns { move, end } — the gesture code above owns the pointer, this just knows
+  // how to follow it and where to drop the tile.
   _beginDrag(tile, e) {
     let rec = tile.getBoundingClientRect();
     let sx = e.clientX, sy = e.clientY;
     tile.classList.add('dragging');
-    tile.setPointerCapture(e.pointerId);
 
-    const move = ev => {
+    const put = ev => {
       tile.style.transform = `translate(${ev.clientX - sx}px, ${ev.clientY - sy}px) scale(1.06)`;
+    };
+    const move = ev => {
+      put(ev);
       tile.style.pointerEvents = 'none';
       const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.tile');
       tile.style.pointerEvents = '';
       if (over && over !== tile && !over.dataset.add) {
         const after = tile.compareDocumentPosition(over) & Node.DOCUMENT_POSITION_FOLLOWING;
         this.grid.insertBefore(tile, after ? over.nextSibling : over);
+        // The tile just moved in the flow, so re-baseline or it jumps out from under
+        // the finger by exactly the distance it was reordered.
         tile.style.transform = '';
         const nr = tile.getBoundingClientRect();
         sx += nr.left - rec.left; sy += nr.top - rec.top; rec = nr;
-        tile.style.transform = `translate(${ev.clientX - sx}px, ${ev.clientY - sy}px) scale(1.06)`;
+        put(ev);
       }
     };
-    const up = () => {
-      tile.removeEventListener('pointermove', move);
-      tile.removeEventListener('pointerup', up);
+    const end = () => {
       tile.style.transform = '';
       tile.classList.remove('dragging');
-      this.order = [...this.grid.querySelectorAll('.tile')].filter(t => !t.dataset.add).map(t => t.dataset.id);
+      this.order = [...this.grid.querySelectorAll('.tile')]
+        .filter(t => !t.dataset.add).map(t => t.dataset.id);
       this._saveLayout();
     };
-    tile.addEventListener('pointermove', move);
-    tile.addEventListener('pointerup', up);
+    return { move, end };
+  }
+
+  // ---- the paint sheet ----------------------------------------------------------
+  // Three colours and a design, on the tile you tapped, applied live. Adam wanted full
+  // control, so every row has the ten-swatch shortcut AND a real colour picker.
+  _openPaint(id) {
+    const node = this.grid.querySelector(`.tile[data-id="${id}"]`);
+    const theme = this.themes[id] = { ...(this.themes[id] || {}) };
+
+    const row = (key, label) => `
+      <div class="row"><b>${label}</b><div class="swatches" data-key="${key}">
+        <button data-v="" class="${theme[key] ? '' : 'on'}"
+          style="background:repeating-linear-gradient(45deg,#2a3037 0 5px,#171b20 5px 10px)"></button>
+        ${PALETTE.map(c => `<button data-v="${c}" class="${theme[key] === c ? 'on' : ''}"
+          style="background:${c}"></button>`).join('')}
+        <label class="pick"><input type="color" data-key="${key}"
+          value="${theme[key] || '#d8433a'}"></label>
+      </div></div>`;
+
+    const sheet = el('div', 'sheet paintSheet');
+    sheet.innerHTML = `<div class="sheetIn">
+      <h3>${BY_ID[id].label}</h3>
+      ${row('text', 'TEXT')}
+      ${row('fill', 'FILL')}
+      ${row('outline', 'OUTLINE')}
+      <div class="row"><b>DESIGN</b><div class="designs">
+        ${DESIGNS.map(([v, l]) => `<button data-design="${v}" class="d-${v}
+          ${(theme.design || 'none') === v ? 'on' : ''}">${l}</button>`).join('')}
+      </div></div>
+      ${row('pat', 'DESIGN COLOUR')}
+      <button class="close">DONE</button></div>`;
+
+    const touch = () => { this._applyTheme(node, id); this._saveLayout(); };
+    const mark = (host, v) => [...host.children].forEach(c =>
+      c.classList?.toggle('on', c.dataset && 'v' in c.dataset && (c.dataset.v || '') === (v || '')));
+
+    sheet.addEventListener('click', e => {
+      const sw = e.target.closest('.swatches button');
+      if (sw) {
+        const key = sw.parentElement.dataset.key;
+        theme[key] = sw.dataset.v || null;
+        mark(sw.parentElement, sw.dataset.v);
+        touch();
+      }
+      const dz = e.target.closest('[data-design]');
+      if (dz) {
+        theme.design = dz.dataset.design;
+        [...dz.parentElement.children].forEach(c => c.classList.toggle('on', c === dz));
+        touch();
+      }
+      if (e.target.closest('.close') || e.target === sheet) sheet.remove();
+    });
+    sheet.addEventListener('input', e => {
+      const key = e.target.dataset.key;
+      if (!key) return;
+      theme[key] = e.target.value;
+      mark(e.target.closest('.swatches'), e.target.value);
+      touch();
+    });
+    this.root.appendChild(sheet);
   }
 
   // ---- apps ---------------------------------------------------------------------

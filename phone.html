@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0d1013">
 <title>RALLY — the phone</title>
-<link rel="stylesheet" href="phone.css?v=1788997389">
+<link rel="stylesheet" href="phone.css?v=1788997907">
 <style>
   html, body { margin: 0; height: 100%; background: #0d1013; }
   :root { --ink: #f2efe9; --red: #d8433a; }
@@ -44,14 +44,15 @@
     <button id="mid">RUN: 4TH, WIDE AT T5</button>
     <button id="dnf">RUN: CRASHED OUT</button>
     <button id="ping">NOTIFICATION</button>
+    <button id="paint">RANDOM COLOURS</button>
     <button id="reset">RESET LAYOUT</button>
   </div>
 </div>
 
 <script type="importmap">
 { "imports": {
-  "./js/phone.js": "./js/phone.js?v=1788997389",
-  "./js/manager.js": "./js/manager.js?v=1788997389"
+  "./js/phone.js": "./js/phone.js?v=1788997907",
+  "./js/manager.js": "./js/manager.js?v=1788997907"
 } }
 </script>
 
@@ -86,6 +87,19 @@ document.getElementById('ping').onclick = () =>
 document.getElementById('reset').onclick = () => { localStorage.removeItem('rally.phone.v1'); location.reload(); };
 document.getElementById('noWall').onclick = () => phone.setWallpaper(null);
 
+// Throw colours at every tile — the fastest way to see what the three-colour scheme can
+// actually do without tapping through fifteen sheets.
+document.getElementById('paint').onclick = () => {
+  const P = ['#f2efe9', '#0d1013', '#d8433a', '#e8792a', '#e8c23a', '#5fbf6a', '#2fb3a8',
+    '#4a90d8', '#8a6fd8', '#e069a8'];
+  const r = a => a[Math.floor(Math.random() * a.length)];
+  for (const id of phone.order) {
+    phone.themes[id] = { text: r(P), fill: r(P), outline: r(P), pat: r(P),
+      design: r(['none', 'dots', 'stripes']) };
+  }
+  phone._saveLayout(); phone._render();
+};
+
 const useFile = f => f && phone.setWallpaper(URL.createObjectURL(f));
 document.getElementById('wall').onchange = e => useFile(e.target.files[0]);
 
@@ -102,6 +116,8 @@ addEventListener('drop', e => {
 const QS = new URLSearchParams(location.search);
 if (QS.get('run')) { phone.open('messages'); phone.postRun(RUNS[QS.get('run')] || RUNS.mid); }
 else if (QS.get('open')) phone.open(QS.get('open'));
+if (QS.get('rand')) document.getElementById('paint').click();
+if (QS.get('paint')) { phone.setJiggle(true); phone._openPaint(QS.get('paint')); }
 
 const bench = document.getElementById('bench');
 bench.querySelector('h4').onclick = () => bench.classList.toggle('up');
