@@ -652,7 +652,7 @@ const menu = new Menu({
     sound.ctx?.resume?.();
     // ?novoice=1 leaves the co-driver out of the graph entirely. It's a diagnostic: if
     // the game has sound with it and not without it, the fault is mine and it's in here.
-    if (QS.get('novoice') !== '1') voice.attach(sound.ctx, sound.master);
+    if (QS.get('novoice') !== '1') voice.attach(sound.ctx);
     look.enable();        // needs the tap: iOS won't hand over the sensor otherwise
     menu.hide();
     menu.unpause();
@@ -695,7 +695,7 @@ if (!AUTO) { $('start').classList.add('gone'); menu.show('home'); }
 if (AUTO) {
   $('start').classList.add('gone');
   sound.start();          // so headless runs exercise the audio path too
-  if (QS.get('novoice') !== '1') voice.attach(sound.ctx, sound.master);
+  if (QS.get('novoice') !== '1') voice.attach(sound.ctx);
 } };
 
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot

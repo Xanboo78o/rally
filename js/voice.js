@@ -92,24 +92,41 @@ export class Voice {
   }
 
   // Called once the game's AudioContext exists, so the co-driver shares its clock.
-  // Nothing in here may ever take the rest of the game's audio down with it. He is the
-  // last thing added to the graph and the first thing that should be dropped: an engine
-  // with no co-driver is a game, a co-driver with no engine is silence.
+  // He goes STRAIGHT TO THE OUTPUT, not into the game's mixer. Plugged into the master
+  // bus he shares the limiter with the engine, which means anything wrong with his
+  // chain is something wrong with the engine's — one bad node and the whole car goes
+  // silent. Straight to the destination he is his own island: the worst he can do is
+  // fail to speak.
+  //
+  // Nothing is built here either. attach() only reads the list of clips; the filters
+  // don't exist until the first time he actually says something, so a run that never
+  // reaches him adds nothing to the graph at all.
   async attach(ctx, out) {
     try {
       this.ctx = ctx;
-      this.radio = makeRadio(ctx, 'helmet');
-      this.gain = ctx.createGain();
-      this.gain.gain.value = 1.0;
-      this.radio.output.connect(this.gain);
-      this.gain.connect(out || ctx.destination);
+      this.out = ctx.destination;
       this.manifest = await (await fetch('./vo/manifest.json')).json();
-      this.ready = true;
+      this.ready = Array.isArray(this.manifest) && this.manifest.length > 0;
     } catch (e) {
       this.ready = false;
-      try { this.gain?.disconnect(); this.radio?.output?.disconnect(); } catch {}
       console.warn('co-driver off:', e && e.message);
     }
+  }
+
+  // Built on demand, once, and never retried if it fails.
+  _chain() {
+    if (this.radio || this.broken) return this.radio;
+    try {
+      this.radio = makeRadio(this.ctx, 'helmet');
+      this.gain = this.ctx.createGain();
+      this.gain.gain.value = 1.0;
+      this.radio.output.connect(this.gain);
+      this.gain.connect(this.out);
+    } catch (e) {
+      this.broken = true; this.radio = null;
+      console.warn('co-driver chain failed:', e && e.message);
+    }
+    return this.radio;
   }
 
   async _buf(slug) {
@@ -136,6 +153,7 @@ export class Voice {
   }
 
   async _say(slugs) {
+    if (!this._chain()) return;
     const bufs = [];
     for (const s of slugs) {
       const b = await this._buf(s);
@@ -146,6 +164,7 @@ export class Voice {
     // A new call interrupts an old one that's still running: on a stage you are always
     // being told about the corner you're about to hit, never the one you just left.
     let t = Math.max(now + 0.02, Math.min(this.nextFree, now + 0.18));
+    const open = t;
     for (const b of bufs) {
       const src = this.ctx.createBufferSource();
       src.buffer = b;
@@ -153,6 +172,12 @@ export class Voice {
       src.start(t);
       t += b.duration + 0.045;
     }
+    // The line opens just before he keys the mic and closes after — which is what a real
+    // intercom does, and means nothing of his is running when he isn't talking.
+    const h = this.radio._hiss.gain;
+    h.cancelScheduledValues(now);
+    h.setTargetAtTime(this.radio.hissLevel, Math.max(now, open - 0.08), 0.03);
+    h.setTargetAtTime(0, t + 0.05, 0.08);
     this.nextFree = t;
   }
 
@@ -160,7 +185,7 @@ export class Voice {
 
   // Cut him off — a run ending, or a menu opening, shouldn't leave a note hanging.
   silence() {
-    if (!this.ready) return;
+    if (!this.ready || !this.gain) return;
     this.nextFree = 0;
     this.gain.gain.cancelScheduledValues(this.ctx.currentTime);
     this.gain.gain.setValueAtTime(0, this.ctx.currentTime);

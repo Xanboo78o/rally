@@ -68,6 +68,8 @@ export function makeRadio(ctx, name = 'helmet') {
   input.connect(hp); hp.connect(lp); lp.connect(peak); peak.connect(scoop);
   scoop.connect(shaper); shaper.connect(comp); comp.connect(makeup); makeup.connect(out);
 
+  const api = { input, output: out, set, gain: out.gain, _hiss: hissG, hissLevel: 0 };
+
   function set(n) {
     const P = PRESETS[n] || PRESETS.helmet;
     const t = ctx.currentTime;
@@ -81,10 +83,10 @@ export function makeRadio(ctx, name = 'helmet') {
     // Harder drive and harder compression both make it louder, so pull it back by
     // roughly what they added or switching preset becomes a volume test.
     makeup.gain.setTargetAtTime(1 / (1 + P.drive * 0.16), t, 0.02);
-    hissG.gain.setTargetAtTime(P.hiss, t, 0.05);
+    api.hissLevel = P.hiss;      // the voice opens and closes the line around a call
     return P;
   }
   set(name);
 
-  return { input, output: out, set, gain: out.gain, _hiss: hissG };
+  return api;
 }
