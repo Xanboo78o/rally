@@ -49,22 +49,36 @@ export const THE_DROP_ZONE = [
 export const THE_PINES = [
   // The road halves in width and the trees come to the edge of it. First hairpin:
   // there is no radius here, so the handbrake is the only way round.
-  { len:  90, turn:  -44, rise:   3, w: 4.2, sec: 'pines', note: 'RIGHT 4 INTO TREES' },
-  { len:  60, turn:   52, rise:   2, w: 4.0, sec: 'pines', note: 'LEFT 3 NARROW' },
-  { len:  55, turn:  -58, rise:   0, w: 3.8, sec: 'pines', note: 'RIGHT 3 TIGHT' },
-  { len:  70, turn:    0, rise:  -2, w: 4.0, sec: 'pines', note: 'SHORT 70' },
+  { len:  90, turn:  -44, rise:   3, w: 4.2, sec: 'pines', note: 'RIGHT 4 INTO TREES',
+    bank: [9, 9] },
+  { len:  60, turn:   52, rise:   2, w: 4.0, sec: 'pines', note: 'LEFT 3 NARROW',
+    bank: [11, 7] },
+  { len:  55, turn:  -58, rise:   0, w: 3.8, sec: 'pines', note: 'RIGHT 3 TIGHT',
+    bank: [8, 12] },
+  { len:  70, turn:    0, rise:  -2, w: 4.0, sec: 'pines', note: 'SHORT 70',
+    bank: [10, 10] },
   { len:  58, turn: -140, rise:   0, w: 4.0, sec: 'pines', note: 'HAIRPIN RIGHT 1 — HOLD THE HANDBRAKE',
+    bank: [13, 8],
     mark: [{ k: 'chevron', t: 0.20, n: 2 }, { k: 'crowd', t: 0.5, n: 7 }] },
-  { len:  80, turn:    0, rise:   4, w: 4.2, sec: 'pines', note: 'STRAIGHT, CLIMBING' },
-  { len:  75, turn:   96, rise:   2, w: 4.0, sec: 'pines', note: 'LEFT 2 — HANDBRAKE AGAIN' },
-  { len:  95, turn:  -36, rise:   0, w: 4.2, sec: 'pines', note: 'RIGHT 4' },
-  { len:  70, turn:   60, rise:  -2, w: 4.0, sec: 'pines', note: 'LEFT 3 OVER ROOTS' },
+  { len:  80, turn:    0, rise:   4, w: 4.2, sec: 'pines', note: 'STRAIGHT, CLIMBING',
+    bank: [9, 9] },
+  { len:  75, turn:   96, rise:   2, w: 4.0, sec: 'pines', note: 'LEFT 2 — HANDBRAKE AGAIN',
+    bank: [7, 13] },
+  { len:  95, turn:  -36, rise:   0, w: 4.2, sec: 'pines', note: 'RIGHT 4',
+    bank: [12, 9] },
+  { len:  70, turn:   60, rise:  -2, w: 4.0, sec: 'pines', note: 'LEFT 3 OVER ROOTS',
+    bank: [9, 11] },
   { len:  62, turn:  -72, rise:   0, w: 3.8, sec: 'pines', note: 'RIGHT 2 — TREE ON THE INSIDE',
+    bank: [10, 8],
     mark: [{ k: 'tree', t: 0.45, side: -1, out: 0.9, h: 19, r: 2.2 }] },
-  { len:  58, turn:    0, rise:   3, w: 4.0, sec: 'pines', note: 'SHORT 58, CRESTING' },
-  { len:  65, turn:   26, rise:  -4, w: 4.2, sec: 'pines', note: 'LEFT 4 DOWNHILL' },
-  { len:  55, turn:  -34, rise:  -3, w: 3.8, sec: 'pines', note: 'RIGHT 3 — DONT DROP A WHEEL' },
-  { len: 110, turn:   40, rise:  -2, w: 4.4, sec: 'pines', note: 'LEFT 4 LONG, OUT OF THE TREES' },
+  { len:  58, turn:    0, rise:   3, w: 4.0, sec: 'pines', note: 'SHORT 58, CRESTING',
+    bank: [8, 10] },
+  { len:  65, turn:   26, rise:  -4, w: 4.2, sec: 'pines', note: 'LEFT 4 DOWNHILL',
+    bank: [11, 11] },
+  { len:  55, turn:  -34, rise:  -3, w: 3.8, sec: 'pines', note: 'RIGHT 3 — DONT DROP A WHEEL',
+    bank: [9, 12] },
+  { len: 110, turn:   40, rise:  -2, w: 4.4, sec: 'pines', note: 'LEFT 4 LONG, OUT OF THE TREES',
+    bank: [10, 9] },
 ];
 
 // ---- THE OLD ROAD ----------------------------------------------------------
@@ -177,28 +191,49 @@ export const THE_PLATEAU = [
   { len: 110, turn:  -38, rise:  -2, w: 5.0, sec: 'plateau', note: 'RIGHT 5' },
 ];
 
+// THE DESCENT's bank alternates on purpose. Adam: "the whole thing with it being on a
+// big hill and 1 mistake costs run is annoying, make it opposite in areas." It used to
+// fall away on BOTH sides for two solid kilometres, so every one of its blind crests was
+// the same threat and there was nowhere to make a mistake cheaply. Now the cut swaps
+// sides down the hill, and twice on the way it is banked both sides — places where going
+// off costs you two tenths and nothing else.
+//
 // ---- THE DESCENT -----------------------------------------------------------
 export const THE_DESCENT = [
   // Downhill, so the car arrives at everything faster than you expect, and half of
   // it is over a crest you can't see past. This is the section that's only possible
   // if you actually listen to the notes.
   { len:  95, turn:    0, rise:  -9, w: 5.0, sec: 'descent', note: 'DOWNHILL, BLIND 95',
+    bank: [10, -3],
     mark: [{ k: 'chevron', t: 0.55, side: 0, n: 2 }] },
-  { len:  80, turn:   50, rise:  -7, w: 4.8, sec: 'descent', note: 'LEFT 4 OVER CREST' },
-  { len:  70, turn:  -46, rise:  -6, w: 4.6, sec: 'descent', note: 'RIGHT 3' },
-  { len: 110, turn:   28, rise:  -8, w: 4.8, sec: 'descent', note: 'LEFT 5 DOWNHILL' },
-  { len:  60, turn:  -86, rise:  -4, w: 4.4, sec: 'descent', note: 'RIGHT 2 — SLOW IT DOWN' },
-  { len: 130, turn:   22, rise:  -6, w: 5.0, sec: 'descent', note: 'LEFT 6 LONG' },
-  { len:  75, turn:  -54, rise:  -3, w: 4.6, sec: 'descent', note: 'RIGHT 3' },
-  { len:  90, turn:   44, rise:  -4, w: 4.8, sec: 'descent', note: 'LEFT 4' },
+  { len:  80, turn:   50, rise:  -7, w: 4.8, sec: 'descent', note: 'LEFT 4 OVER CREST',
+    bank: [10, -3] },
+  { len:  70, turn:  -46, rise:  -6, w: 4.6, sec: 'descent', note: 'RIGHT 3',
+    bank: [10, -3] },
+  { len: 110, turn:   28, rise:  -8, w: 4.8, sec: 'descent', note: 'LEFT 5 DOWNHILL',
+    bank: [-3, 10] },
+  { len:  60, turn:  -86, rise:  -4, w: 4.4, sec: 'descent', note: 'RIGHT 2 — SLOW IT DOWN',
+    bank: [-3, 10] },
+  { len: 130, turn:   22, rise:  -6, w: 5.0, sec: 'descent', note: 'LEFT 6 LONG',
+    bank: [8, 8] },
+  { len:  75, turn:  -54, rise:  -3, w: 4.6, sec: 'descent', note: 'RIGHT 3',
+    bank: [10, -3] },
+  { len:  90, turn:   44, rise:  -4, w: 4.8, sec: 'descent', note: 'LEFT 4',
+    bank: [10, -3] },
   { len:  65, turn:    0, rise:   5, w: 5.0, sec: 'descent', note: 'CREST 65 — CAUTION',
+    bank: [-3, 10],
     mark: [{ k: 'chevron', t: 0.30, side: 0, n: 2 }] },
-  { len:  70, turn:    0, rise:  -7, w: 5.0, sec: 'descent', note: 'JUMP, THEN RIGHT' },
-  { len:  85, turn:  -58, rise:  -2, w: 4.6, sec: 'descent', note: 'RIGHT 3 ON LANDING' },
-  { len: 120, turn:   36, rise:  -3, w: 5.0, sec: 'descent', note: 'LEFT 5 LONG' },
+  { len:  70, turn:    0, rise:  -7, w: 5.0, sec: 'descent', note: 'JUMP, THEN RIGHT',
+    bank: [-3, 10] },
+  { len:  85, turn:  -58, rise:  -2, w: 4.6, sec: 'descent', note: 'RIGHT 3 ON LANDING',
+    bank: [-3, 10] },
+  { len: 120, turn:   36, rise:  -3, w: 5.0, sec: 'descent', note: 'LEFT 5 LONG',
+    bank: [9, 9] },
   { len: 100, turn:  -30, rise:   0, w: 5.2, sec: 'descent', note: 'RIGHT 5 — LAST CORNER',
+    bank: [8, -3],
     mark: [{ k: 'banner', t: 0.75 }] },
   { len: 180, turn:    0, rise:   0, w: 5.6, sec: 'descent', note: 'FLAT TO FINISH',
+    bank: [7, 7],
     mark: [{ k: 'crowd', t: 0.55, side: 0, n: 16, out: 0.4 }] },
 ];
 

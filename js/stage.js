@@ -42,15 +42,53 @@ const DROP_END = EDGE_DROP / EDGE_SLOPE;   // 8.67m out, where that fall stops
 // receding into haze.
 const SKIRT_KNOTS = [[0, 0], [0.30, 0.25], [0.65, 0.60], [1, 1]];
 
+// ---------------------------------------------------------------------------
+// BANK — which way the ground goes beside the road, per side, per segment.
+//
+// Until now it only ever went DOWN: every road in the game sat on top of a ridge with
+// the land falling away on both sides, which is why THE DESCENT felt like one mistake
+// away from over for two solid kilometres, and why the pines were trees standing on a
+// crown rather than a road cut through a forest.
+//
+// A segment can now say `bank: [left, right]` in METRES. Negative falls away (the old
+// behaviour, and still the default). Positive is a CUT — the land rises beside you, and
+// keeps rising, so going off that side costs you speed instead of the run. Alternate
+// them down a hill and the exposure swaps sides instead of being permanent.
+//
+// +lat is the driver's LEFT, so bank[0] is the left of the car.
+//
+// Raised ground is also the honest fix for "i cannot see the end of the baseplate":
+// a hillside that keeps climbing has no horizon behind it to give the game away.
+const BANK_DEFAULT = [-EDGE_DROP, -EDGE_DROP];
+const RISE_END = VERGE;     // metres out at which a cut has reached its full height
+const RIDGE_MULT = 2.6;     // ...and how much taller again it is by the end of the skirt
+
 // THE GROUND, in one function, used by both the physics in sample() and the mesh built
 // below. It has to be one function: they were two, and they disagreed — the mesh drew a
 // single flat plate 2.6m under everything while the road ribbon sat on top of nothing,
 // so the road visibly hung 2.6m in the air for the whole stage.
-export function groundProfile(y, off, floorY, span = SKIRT) {
+//
+// `lift` is this side's bank in metres: negative falls to the valley floor, positive
+// climbs and never comes back down.
+export function groundProfile(y, off, floorY, span = SKIRT, lift = -EDGE_DROP) {
   if (off <= 0) return y;                                  // on the road
-  if (off <= DROP_END) return y - off * EDGE_SLOPE;        // the verge falling away
-  const edge = y - EDGE_DROP;
-  if (off <= VERGE) return edge;                           // the level shelf
+
+  if (lift > 0) {
+    // A cut into the hillside. Steep at the road and easing as it goes, which is what
+    // a bank actually looks like and also keeps the near vertices from stepping.
+    if (off <= RISE_END) {
+      const t = off / RISE_END;
+      return y + lift * t * (2 - t);                       // ease-out to full height
+    }
+    const t = Math.min(1, (off - RISE_END) / Math.max(1, span));
+    return y + lift * (1 + (RIDGE_MULT - 1) * t * t * (3 - 2 * t));
+  }
+
+  const drop = -lift;
+  const dropEnd = drop / EDGE_SLOPE;
+  if (off <= dropEnd) return y - off * EDGE_SLOPE;          // the verge falling away
+  const edge = y - drop;
+  if (off <= VERGE) return edge;                            // the level shelf
   const total = edge - floorY;
   if (total <= 0) return edge;
   const t = Math.min(1, (off - VERGE) / Math.max(1, span));
@@ -78,7 +116,8 @@ export class Stage {
 
   _build() {
     let x = 0, z = 0, y = 0, head = 0, dist = 0;
-    this.samples.push({ x, z, y, w: this.segments[0].w, head, dist, seg: 0 });
+    const b0 = this.segments[0].bank || BANK_DEFAULT;
+    this.samples.push({ x, z, y, w: this.segments[0].w, head, dist, seg: 0, bl: b0[0], br: b0[1] });
 
     this.segments.forEach((seg, si) => {
       const n = Math.max(2, Math.round(seg.len / STEP));
@@ -86,6 +125,10 @@ export class Stage {
       const dRise = seg.rise / n;
       const dLen = seg.len / n;
       const prevW = si === 0 ? seg.w : this.segments[si - 1].w;
+      // Bank eases across the seam exactly the way width does. It has to: a hillside
+      // that appears between one 2m sample and the next is a wall, not a bank.
+      const bank = seg.bank || BANK_DEFAULT;
+      const prevBank = (si === 0 ? seg.bank : this.segments[si - 1].bank) || BANK_DEFAULT;
 
       for (let i = 1; i <= n; i++) {
         head += dTurn;
@@ -95,8 +138,11 @@ export class Stage {
         dist += dLen;
         // Ease the width across the seam so the road doesn't step.
         const t = i / n;
-        const w = prevW + (seg.w - prevW) * Math.min(1, t * 2);
-        this.samples.push({ x, z, y, w, head, dist, seg: si });
+        const k = Math.min(1, t * 2);
+        const w = prevW + (seg.w - prevW) * k;
+        this.samples.push({ x, z, y, w, head, dist, seg: si,
+                            bl: prevBank[0] + (bank[0] - prevBank[0]) * k,
+                            br: prevBank[1] + (bank[1] - prevBank[1]) * k });
       }
     });
   }
@@ -207,6 +253,8 @@ export class Stage {
     const w = s.w + (n.w - s.w) * t;
     const span = s.span + (n.span - s.span) * t;
     const off = Math.abs(lateral) - w;
+    // +lat is the driver's LEFT, so which bank you're standing on depends on the sign.
+    const lift = lateral >= 0 ? s.bl + (n.bl - s.bl) * t : s.br + (n.br - s.br) * t;
 
     // Gradient of the road in the direction of travel. It MUST be the gradient of
     // the same pair of samples the height was interpolated across — take it from the
@@ -216,7 +264,7 @@ export class Stage {
 
     // The same curve the mesh is built from, so what you can see is what you land on —
     // including off the side of the mountain, where the ground now keeps going down.
-    const height = groundProfile(baseY, off, this.floorY, span);
+    const height = groundProfile(baseY, off, this.floorY, span, lift);
     return {
       height,
       slope,
@@ -260,7 +308,10 @@ const CHUNK = 120;          // samples per chunk — 240m
 //   mono  { every, h, out, w }        big broken blocks, far out (ruins, climb)
 const PROPS = {
   dawn:    { tree: { every: 7, near: 16, far: 46, h: 8.5, r: 2.4 }, tuft: 3, stone: 2 },
-  pines:   { tree: { every: 2, near: 2.5, far: 17, h: 14.0, r: 2.1 }, tuft: 3, stone: 2 },
+  // Huge, and a LOT of them. 14m pines at 17m out read as scrub on a hillside; the
+  // road is supposed to be cut THROUGH a forest, which means trunks that leave the top
+  // of the windscreen and go back further than the fog does.
+  pines:   { tree: { every: 1, near: 2.2, far: 34, h: 30.0, r: 3.4 }, tuft: 3, stone: 2 },
   ruins:   { tree: { every: 12, near: 22, far: 60, h: 9.0, r: 3.0 },
              mono: { every: 11, h: 26, out: 26, w: 5.0 }, tuft: 2, stone: 2 },
   village: { wall: { every: 3, h: 5.5, gap: 1.4, w: 3.2 }, tuft: 1, stone: 2 },
@@ -468,15 +519,29 @@ export function buildStageMesh(THREE, stage) {
       const cRoad = hex(p.road), cVerge = hex(p.verge), cFloor = hex(p.floor);
       const cNear = mix(cVerge, cFloor, 0.35), cFar = mix(cVerge, cFloor, 0.75);
       const w = s.w, V = w + VERGE, K = s.span;
+      // Each side reads its own bank. Ground that FALLS runs out to the valley floor and
+      // takes the floor's colour with it; ground that RISES is a hillside, so it goes the
+      // other way, toward rock and whatever grows on it. Same eleven bands either way.
+      const sideOf = lift => {
+        const up = lift > 0;
+        const outer = up ? hex(p.stone) : cFloor;
+        return {
+          mid: up ? RISE_END * 0.55 : (-lift) / EDGE_SLOPE,
+          near: mix(cVerge, outer, up ? 0.30 : 0.35),
+          far: mix(cVerge, outer, up ? 0.62 : 0.75),
+          outer,
+        };
+      };
+      const R = sideOf(s.br), L = sideOf(s.bl);   // -lat is the driver's right
       const cross = [
-        [-(V + K), cFloor], [-(V + K * 0.65), cFar], [-(V + K * 0.30), cNear],
-        [-V, cVerge], [-(w + DROP_END), cVerge], [-w, cVerge],
+        [-(V + K), R.outer], [-(V + K * 0.65), R.far], [-(V + K * 0.30), R.near],
+        [-V, cVerge], [-(w + R.mid), cVerge], [-w, cVerge],
         [-w, cRoad], [w, cRoad],
-        [w, cVerge], [w + DROP_END, cVerge], [V, cVerge],
-        [V + K * 0.30, cNear], [V + K * 0.65, cFar], [V + K, cFloor],
+        [w, cVerge], [w + L.mid, cVerge], [V, cVerge],
+        [V + K * 0.30, L.near], [V + K * 0.65, L.far], [V + K, L.outer],
       ];
       for (const [lat, rgb] of cross) {
-        const y = groundProfile(s.y, Math.abs(lat) - w, FLOOR, K);
+        const y = groundProfile(s.y, Math.abs(lat) - w, FLOOR, K, lat >= 0 ? s.bl : s.br);
         push(land, s.x + rx * lat, y, s.z + rz * lat, rgb);
       }
 
@@ -554,13 +619,14 @@ export function buildStageMesh(THREE, stage) {
       // on this. Previously every prop was pinned to ROAD level and ignored the verge
       // falling away, so posts hovered 19cm up, stones 55cm, trees 60cm and the ruins
       // monoliths a clear 1.1m — while the near pines were buried to the branches.
-      const gy = d => groundProfile(s.y, d - s.w, FLOOR, s.span);
+      // `d` is distance from the centreline; side decides which bank it stands on.
+      const gy = (d, side = 1) => groundProfile(s.y, Math.abs(d) - s.w, FLOOR, s.span, side >= 0 ? s.bl : s.br);
 
       // edge posts, so you can read where the road goes in first person
       if (i % 4 === 0) {
         for (const side of [-1, 1]) {
           const d = s.w + 0.7;
-          jobs.post.push({ x: s.x + rx * d * side, y: gy(d) + 0.52,
+          jobs.post.push({ x: s.x + rx * d * side, y: gy(d, side) + 0.52,
                            z: s.z + rz * d * side, c: p.post });
         }
       }
@@ -574,13 +640,13 @@ export function buildStageMesh(THREE, stage) {
           // Cone origin is its centre, so half the height puts the base on the ground;
           // a few centimetres lower and it grows OUT of the dirt rather than resting on
           // it, which is the difference between grass and a traffic cone.
-          jobs.tuft.push({ x: s.x + rx * d * side, y: gy(d) + 0.225 - (j % 4) * 0.03,
+          jobs.tuft.push({ x: s.x + rx * d * side, y: gy(d, side) + 0.225 - (j % 4) * 0.03,
                            z: s.z + rz * d * side, c: p.tuft });
         }
         for (let k = 0; k < (P.stone || 2); k++) {
           const j = (i * 53 + k * 23 + (side > 0 ? 29 : 7)) % 23;
           const d = s.w + 0.25 + j * 0.11;
-          jobs.stone.push({ x: s.x + rx * d * side, y: gy(d) + 0.06 - (j % 3) * 0.02,
+          jobs.stone.push({ x: s.x + rx * d * side, y: gy(d, side) + 0.06 - (j % 3) * 0.02,
                             z: s.z + rz * d * side, c: p.stone });
         }
       }
@@ -591,7 +657,7 @@ export function buildStageMesh(THREE, stage) {
           const t = j / 17;
           const d = s.w + P.tree.near + t * (P.tree.far - P.tree.near);
           const h = P.tree.h * (0.72 + (j % 5) * 0.13);
-          jobs.tree.push({ x: s.x + rx * d * side, y: gy(d) - 0.30, z: s.z + rz * d * side,
+          jobs.tree.push({ x: s.x + rx * d * side, y: gy(d, side) - 0.30, z: s.z + rz * d * side,
                            h, r: P.tree.r * (0.8 + (j % 3) * 0.16), c: p.tree });
         }
       }
@@ -605,7 +671,7 @@ export function buildStageMesh(THREE, stage) {
           const d = s.w + P.wall.gap + P.wall.w * 0.5;
           // Each building gets its own shade of the same material. Two hex values would
           // read as two kinds of house; a scale on one reads as weathering.
-          jobs.slab.push({ x: s.x + rx * d * side, y: gy(d) - 0.40 + h * 0.5,
+          jobs.slab.push({ x: s.x + rx * d * side, y: gy(d, side) - 0.40 + h * 0.5,
                            z: s.z + rz * d * side, head: s.head,
                            sx: P.wall.w, sy: h, sz: 2.0 + (j % 4) * 1.4,
                            c: p.wall, shade: 0.74 + (j % 6) * 0.09 });
@@ -618,7 +684,7 @@ export function buildStageMesh(THREE, stage) {
         const j = (i * 29) % 19;
         const h = P.mono.h * (0.55 + (j % 7) * 0.12);
         const d = s.w + P.mono.out + (j % 5) * 4.5;
-        jobs.slab.push({ x: s.x + rx * d * side, y: gy(d) - 0.60 + h * 0.5,
+        jobs.slab.push({ x: s.x + rx * d * side, y: gy(d, side) - 0.60 + h * 0.5,
                          z: s.z + rz * d * side, head: s.head + (j % 5) * 0.19,
                          sx: P.mono.w, sy: h, sz: P.mono.w * (0.6 + (j % 3) * 0.3),
                          c: p.stone, shade: 0.68 + (j % 5) * 0.10 });
@@ -659,6 +725,55 @@ export function buildStageMesh(THREE, stage) {
     group.add(chunk);
   }
 
+  // ---- the horizon ---------------------------------------------------------
+  // "make sure in every area i cannot see the end of the baseplate."
+  //
+  // The shaped hillside only runs a couple of hundred metres out; past that it was a
+  // dead flat apron all the way to the fog, and a flat apron under a straight horizon is
+  // exactly what reads as the edge of a table. So the stage carries its own distant
+  // landscape: big soft forms standing on the valley floor, far enough out to be most of
+  // the way into the haze, tall enough that there is always something ABOVE the horizon
+  // line in every direction. You never see them properly. That's the point — they exist
+  // to make sure the world doesn't end.
+  {
+    const hills = [];
+    const coarse = S.filter((_, i) => i % 20 === 0);      // for keeping clear of the road
+    for (let i = 0; i < S.length; i += 110) {
+      const s = S[i];
+      const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+      for (const side of [-1, 1]) {
+        for (let k = 0; k < 2; k++) {
+          const j = (i * 61 + k * 137 + (side > 0 ? 29 : 3)) % 97;
+          const d = 430 + (j % 11) * 46;                   // 430..890m out
+          const x = s.x + rx * d * side, z = s.z + rz * d * side;
+          // The road doubles back on itself up the climb, so a hill dropped blindly to
+          // one side can land on a piece of road you reach two minutes later.
+          let clear = true;
+          for (const c of coarse) if ((c.x - x) ** 2 + (c.z - z) ** 2 < 260 * 260) { clear = false; break; }
+          if (!clear) continue;
+          hills.push({ x, z, h: 90 + (j % 7) * 32, r: 150 + (j % 5) * 90,
+                       c: pal[i].floor });
+        }
+      }
+    }
+    if (hills.length) {
+      const im = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 5), propMat, hills.length);
+      hills.forEach((o, k) => {
+        pos.set(o.x, FLOOR - 8 + o.h * 0.5, o.z);
+        scl.set(o.r, o.h, o.r);
+        q.setFromAxisAngle(UP, (k * 2.399));
+        m.compose(pos, q, scl);
+        im.setMatrixAt(k, m);
+        // Aerial perspective: the further a thing is, the more of the sky is in it.
+        col.setHex(o.c).lerp(new THREE.Color(0xffffff), 0.18);
+        im.setColorAt(k, col);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      group.add(im);
+    }
+  }
+
   // ---- landmarks -----------------------------------------------------------
   // Not chunked. There are twenty of them across eight kilometres, so they all go into
   // one instanced mesh per shape — three draw calls for the lot, which is cheaper than
@@ -688,7 +803,7 @@ export function buildStageMesh(THREE, stage) {
         w: s.w, p: pal[i],
         // How far the ground has fallen from road level this far out. Everything stands
         // on this, or it hovers over the verge the way every prop here used to.
-        ground: lat => groundProfile(s.y, Math.abs(lat) - s.w, FLOOR, s.span) - s.y,
+        ground: lat => groundProfile(s.y, Math.abs(lat) - s.w, FLOOR, s.span, lat >= 0 ? s.bl : s.br) - s.y,
         at(d) {
           let j = i, target = s.dist + d;
           while (j > 0 && S[j].dist > target) j--;
