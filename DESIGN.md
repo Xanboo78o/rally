@@ -103,6 +103,83 @@ The **track is hand-authored; only the ruleset is rolled.** Candidate categories
 surface, weather, time of day, car class, tyre rules, damage rules, direction, gravity,
 what the HUD shows you, and a starting handicap.
 
+## The track maker, and the land coming first
+
+Adam, 2026-09-08: *"we will make a track maker website, it uses a noise map for
+heightmap, then random gens a material with tags, then i decorate it and add roads."*
+
+This inverts the engine. Up to here **the road made the ground**: `Stage._build()`
+integrates a list of turns into a centreline and `groundProfile()` extrudes a hillside
+sideways off it. There is no terrain — which is why the skirt folds through itself in
+tight corners and has to be narrowed by `_spans()`, and why `rise` has to be written by
+hand for every segment.
+
+Now the land exists first and a road is drawn **on** it, which is how a rally road
+happens in the first place: nobody designs a stage in the air, they find a road across a
+mountain. What follows from that, all of it for free:
+
+- `rise` stops being authored. Height comes from the land, so **crests and jumps are
+  found, not written** — you route over a ridge and there's your jump.
+- `_spans()` and the fold-through hack die, because the ground isn't extruded any more.
+- **Camber** arrives on its own, out of the cut and fill, and off-camber is the scariest
+  thing in rally.
+- **Pace notes get measured off the road instead of written**, which kills the mirrored-
+  notes bug above as a *class*, and makes a stage run backwards produce correct notes on
+  its own. The coaching lines (`START TURNING EARLY`) stay hand-written on top.
+
+**A world is a seed.** About forty bytes, which is what you want when one goes out to a
+group chat every morning. `maker.html?seed=N` is the whole address of a place.
+
+### The roll
+
+Rolling does not generate a track. It generates a **place to go and look at** — the
+layout rule doesn't move. What it rolls is a MATERIAL, and a material is only **four
+colours and five words**: rock, dust, growth, sky. Everything else is derived, so
+changing one colour moves the whole place together instead of leaving eleven hexes to
+reconcile by hand.
+
+The tags are not labels, they drive things. `young` buys octaves and bends the ridgelines
+harder; `ancient` rounds them off; `slick` / `loose` / `hard` set the grip the car
+actually gets; `hot` turns on the heat shimmer; `dark` drops the exposure and closes the
+fog in. One roll therefore produces a coherent place — a full `atmos.js` entry plus a
+surface — and every field is a suggestion to be overwritten.
+
+Sixteen materials so far (BASALT, SCORIA, LATERITE, CHALK, GRANITE, SHALE, LOESS,
+SERPENTINE, GYPSUM, HALITE, TILL, IRONSTONE, TUFF, ANORTHOSITE, OBSIDIAN, PERMAFROST)
+over seven **forms** — `rolling`, `ridged`, `mesa`, `terraced`, `dunes`, `cratered`,
+`flats` — and each form is a different problem for a road to solve.
+
+The ground is **painted, not textured**: colour comes per vertex from what the land is
+*doing* there — steep goes bare to the rock, low and flat carries growth, high bleaches
+to dust. So a new material re-*reads* the land rather than only recolouring it.
+
+### What's built
+
+`js/terrain.js` (seeded gradient noise, domain warp, the seven forms, bake to a grid),
+`js/materials.js` (the roll), `js/land.js` (the mesh and the hillshaded map), and
+`maker.html` — fly over a world, then get in and drive it with no road at all, which is
+also how you'd choose where a road goes. The material's grip is already wired into the
+car, so obsidian really is slippery. A world bakes in about a quarter of a second.
+
+Learned immediately, and it's about the game rather than the tool: **there is no
+throttle**. Put the car down facing downhill and it is gone before you let go of the
+mouse — off the edge of a mesa and falling within four seconds. It gets dropped along
+the contour instead.
+
+### Not built: the roads
+
+The open question, and the next thing. Two ways to draw one, and they want different
+tools: on the **map**, top-down with the contours in front of you, which is how you get
+a nine-kilometre stage in two minutes; or by **driving** the line you want, which
+guarantees the road goes somewhere a car can actually go and is what a recce is. The
+synthesis worth trying is both — rough it in on the map, then drive it to commit, and
+the driving pass is what sets the width, the cut and the camber. A road that appears
+because you wore it in.
+
+Also open: whether a world is **one plot with several stages on it** — a month is a
+planet, four stages on the same mountain, and you recognise a ridge from Tuesday — or
+one plot per stage. The first is what a real rally is.
+
 ## Driving
 
 **First person.** Which promotes the co-driver from flavour to the core mechanic: you

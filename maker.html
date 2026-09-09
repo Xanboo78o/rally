@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RALLY — track maker</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #111;
+    font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; color: #e8e2d4; }
+  canvas#view { display: block; width: 100vw; height: 100vh; }
+
+  .panel { position: fixed; background: rgba(14,15,18,.86); border: 1px solid #383d46;
+    border-radius: 8px; backdrop-filter: blur(6px); }
+
+  #card { top: 10px; left: 10px; padding: 10px 12px; max-width: 260px; }
+  #card h1 { margin: 0 0 2px; font-size: 20px; letter-spacing: .08em; }
+  #card .tags { color: #b9a06a; margin-bottom: 6px; }
+  #card table { border-collapse: collapse; width: 100%; }
+  #card td { padding: 1px 0; }
+  #card td:first-child { color: #8a909a; padding-right: 10px; }
+
+  #mapbox { top: 10px; right: 10px; padding: 6px; }
+  #map { display: block; width: 220px; height: 220px; image-rendering: pixelated;
+    border-radius: 4px; }
+  #mapbox .lbl { text-align: center; color: #8a909a; padding-top: 4px; }
+
+  #bar { left: 10px; right: 10px; bottom: 10px; padding: 8px 10px;
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  button, select, input { font: inherit; color: #e8e2d4; background: #23272e;
+    border: 1px solid #454b55; border-radius: 5px; padding: 5px 9px; }
+  button { cursor: pointer; }
+  button:hover { background: #2f343d; }
+  button.on { background: #d8433a; border-color: #d8433a; }
+  input#seed { width: 90px; }
+  #hint { color: #8a909a; margin-left: auto; }
+  #busy { position: fixed; inset: 0; display: grid; place-items: center;
+    background: #111; font-size: 14px; letter-spacing: .1em; }
+</style>
+</head>
+<body>
+
+<!-- THE TRACK MAKER.
+     The land comes first now. Up to here the road made the ground — stage.js integrated
+     a list of turns and extruded a hillside off the result — so there was no terrain to
+     put a road ON. This rolls a PLACE (a material, a handful of words, and the numbers
+     that shape the land), bakes it, and drops you into it to drive.
+     The layout stays hand drawn. Nothing here generates a road. -->
+
+<canvas id="view"></canvas>
+
+<div id="card" class="panel">
+  <h1 id="mName">—</h1>
+  <div class="tags" id="mTags"></div>
+  <table><tbody id="mRows"></tbody></table>
+</div>
+
+<div id="mapbox" class="panel">
+  <canvas id="map" width="220" height="220"></canvas>
+  <div class="lbl" id="mapLbl">4 km</div>
+</div>
+
+<div id="bar" class="panel">
+  <button id="roll">ROLL</button>
+  <input id="seed" type="number" value="2026">
+  <select id="matSel"></select>
+  <select id="formSel"></select>
+  <button id="mode">FLY</button>
+  <button id="drop">put me down here</button>
+  <div id="hint">fly: WASD + QE, drag to look &nbsp;·&nbsp; drive: ←→ steer, space handbrake, S downshift</div>
+</div>
+
+<div id="busy">BAKING…</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./js/vendor/three.module.min.js",
+  "./js/terrain.js": "./js/terrain.js?v=1788915388",
+  "./js/materials.js": "./js/materials.js?v=1788915388",
+  "./js/land.js": "./js/land.js?v=1788915388",
+  "./js/car.js": "./js/car.js?v=1788915388",
+  "./js/wheel.js": "./js/wheel.js?v=1788915388"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { Terrain, FORMS } from './js/terrain.js';
+import { MATERIALS, rollPlace } from './js/materials.js';
+import { buildLandMesh, drawMap, cullLand } from './js/land.js';
+import { Car, CAR } from './js/car.js';
+import { Wheel } from './js/wheel.js';
+
+const $ = id => document.getElementById(id);
+const SIZE = 4096, STEP = 6;
+
+// A world is a seed, so a world is a URL. ?seed=N opens someone else's, ?fly=x,z,alt
+// parks the camera, ?mode=drive drops straight in.
+const QS = new URLSearchParams(location.search);
+// Any throw lands in the status line, so a headless dump can read it. A module that
+// dies mid-frame otherwise just leaves a sky-coloured screenshot and no clue.
+addEventListener('error', e => { document.title = 'ERR ' + e.message + ' @' + (e.lineno || '?'); });
+
+// The car's tuning is shared module state, so the material's grip has to be applied as
+// a multiplier on a remembered baseline — not by writing over it, or two rolls in a row
+// compound and the third world is made of ice.
+const BASE = { gripLat: CAR.gripLat, offroadDrag: CAR.offroadDrag };
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: $('view') });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(62, 1, 0.2, 6000);
+const hemi = new THREE.HemisphereLight(0xcfe0ee, 0x40492f, 1);
+const sun = new THREE.DirectionalLight(0xfff2dd, 1.1);
+scene.add(hemi, sun);
+
+let place = null, terrain = null, land = null;
+let mode = 'fly';
+const car = new Car(), wheel = new Wheel();
+const fly = { x: 0, y: 600, z: 1400, yaw: 0, pitch: -0.35 };
+const keys = new Set();
+
+// ---------------------------------------------------------------------------
+// rolling a world
+// ---------------------------------------------------------------------------
+function build(p) {
+  place = p;
+  terrain = new Terrain({ ...p.terrain, size: SIZE, step: STEP }).bakeAll();
+  if (land) { scene.remove(land); land.traverse(o => o.geometry && o.geometry.dispose()); }
+  land = buildLandMesh(THREE, terrain, p.atmos.ground);
+  scene.add(land);
+
+  const A = p.atmos;
+  scene.background = new THREE.Color(A.sky);
+  scene.fog = new THREE.Fog(A.sky, A.fog[0], A.fog[1]);
+  camera.far = A.fog[1] * 1.4; camera.updateProjectionMatrix();
+  sun.color.setHex(A.sun.color); sun.intensity = A.sun.int; sun.position.set(...A.sun.pos);
+  hemi.color.setHex(A.hemi.sky); hemi.groundColor.setHex(A.hemi.ground); hemi.intensity = A.hemi.int;
+
+  // What it's like under the tyres — the half that makes a world tour a tour rather
+  // than a slideshow.
+  CAR.gripLat = BASE.gripLat * p.surface.grip;
+  CAR.offroadDrag = BASE.offroadDrag * p.surface.drag;
+
+  drawMap(terrain, A.ground, $('map'));
+  $('mapLbl').textContent = (SIZE / 1000) + ' km · ' + Math.round(terrain.max - terrain.min) + 'm of relief';
+
+  $('mName').textContent = p.material;
+  $('mTags').textContent = p.tags.join(' · ');
+  $('mRows').innerHTML = [
+    ['seed', p.seed], ['form', p.form],
+    ['relief', Math.round(terrain.max - terrain.min) + ' m'],
+    ['feature', p.terrain.scale + ' m'],
+    ['grip', p.surface.grip + '×'], ['dust', p.surface.dust + '×'],
+  ].map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+
+  history.replaceState(null, '', '?seed=' + p.seed);
+  $('seed').value = p.seed;
+  $('matSel').value = p.material;
+  $('formSel').value = p.form;
+  putDown(0, 0);
+  const f = (QS.get('fly') || '').split(',').map(Number);
+  fly.x = f.length === 3 ? f[0] : 0;
+  fly.z = f.length === 3 ? f[1] : 1400;
+  fly.y = terrain.height(fly.x, fly.z) + (f.length === 3 ? f[2] : 260);
+  fly.yaw = Math.PI; fly.pitch = -0.5;
+}
+
+// Drop the car on the ground, pointing ALONG THE CONTOUR — across the slope, not down
+// it. There is no throttle in this game: you are always flat out, so a car put down
+// facing downhill is gone before you've let go of the mouse, and on a mesa world it is
+// off the edge and falling within four seconds. Which is a fair thing to learn about a
+// world, but a poor way to look at one. Across the slope it holds its height and you
+// get to see where you are.
+function putDown(x, z) {
+  const n = terrain.normal(x, z, 24);
+  car.x = x; car.z = z; car.y = terrain.height(x, z);
+  car.vf = 0; car.vr = 0; car.vy = 0; car.yawRate = 0; car.rolled = false;
+  // The gradient points downhill; a quarter turn off it is the contour.
+  car.yaw = Math.atan2(-n[0], -n[2]) + Math.PI / 2;
+  wheel.pos = 0; wheel.target = 0;
+}
+
+// ---------------------------------------------------------------------------
+// loop
+// ---------------------------------------------------------------------------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (terrain) (mode === 'fly' ? stepFly : stepDrive)(dt);
+  renderer.render(scene, camera);
+  if (QS.has('dbg')) document.title = [mode,
+    'car ' + car.x.toFixed(0) + ',' + car.z.toFixed(0) + ' y' + car.y.toFixed(1),
+    'ground ' + terrain.height(car.x, car.z).toFixed(1),
+    'cam ' + camera.position.toArray().map(v => v.toFixed(0)).join(','),
+    'rotY ' + camera.rotation.y.toFixed(2) + ' rotX ' + camera.rotation.x.toFixed(2),
+    'far ' + camera.far.toFixed(0) + ' fog ' + scene.fog.near.toFixed(0) + '-' + scene.fog.far.toFixed(0),
+    'vis ' + land.children.filter(m => m.visible).length + '/' + land.children.length].join(' | ');
+  requestAnimationFrame(frame);
+}
+
+function stepFly(dt) {
+  const boost = keys.has('shift') ? 4 : 1;
+  const sp = 220 * boost * dt;
+  const f = [Math.sin(fly.yaw) * Math.cos(fly.pitch), Math.sin(fly.pitch), Math.cos(fly.yaw) * Math.cos(fly.pitch)];
+  const r = [Math.cos(fly.yaw), 0, -Math.sin(fly.yaw)];
+  const go = (v, k) => { fly.x += v[0] * k; fly.y += v[1] * k; fly.z += v[2] * k; };
+  if (keys.has('w')) go(f, sp);
+  if (keys.has('s')) go(f, -sp);
+  if (keys.has('a')) go(r, sp);
+  if (keys.has('d')) go(r, -sp);
+  if (keys.has('q')) fly.y -= sp;
+  if (keys.has('e')) fly.y += sp;
+  fly.y = Math.max(terrain.height(fly.x, fly.z) + 12, fly.y);
+  // The place's fog is a DRIVER's fog — it exists to hide the far side of the valley
+  // from someone sitting a metre off the ground. From four hundred metres up it hides
+  // the entire world, which is how the first survey camera came back with a photograph
+  // of the sky. So it opens out with altitude: the higher you go, the further you see,
+  // which is also just true.
+  const alt = fly.y - terrain.height(fly.x, fly.z);
+  const A = place.atmos;
+  scene.fog.near = A.fog[0] + alt * 1.2;
+  scene.fog.far = A.fog[1] + alt * 6;
+  camera.far = scene.fog.far * 1.3;
+  camera.updateProjectionMatrix();
+  cullLand(land, fly.x, fly.z, scene.fog.far);
+  camera.position.set(fly.x, fly.y, fly.z);
+  camera.rotation.set(0, 0, 0);
+  camera.rotateY(Math.PI + fly.yaw);
+  camera.rotateX(fly.pitch);
+  mark(fly.x, fly.z);
+}
+
+function stepDrive(dt) {
+  const left = keys.has('arrowleft') || keys.has('a');
+  const right = keys.has('arrowright') || keys.has('d');
+  wheel.held = left || right;
+  wheel.target = left ? -1 : right ? 1 : 0;
+  wheel.update(dt, car.speedFactor);
+  const A = place.atmos;
+  if (scene.fog.far !== A.fog[1]) {
+    scene.fog.near = A.fog[0]; scene.fog.far = A.fog[1];
+    camera.far = A.fog[1] * 1.4; camera.updateProjectionMatrix();
+  }
+  car.step(dt, wheel.pos, keys.has(' '), {
+    height: terrain.height(car.x, car.z),
+    slope: terrain.slopeAlong(car.x, car.z, car.yaw),
+    // There is no road yet, so nothing is OFF it. When a road exists this becomes
+    // distance-to-the-line, and that one boolean is the whole difference between
+    // driving the stage and driving the mountain it's cut into.
+    onRoad: true,
+  });
+  // Eye height, and the camera set up exactly as the game's is, so left and right here
+  // are left and right there.
+  // Off the edge of a mesa with no road to stay on, the car falls for a long time and
+  // the view is just sky. Put it back rather than making him press R.
+  if (car.airTime > 4 || Math.abs(car.x) > SIZE / 2 || Math.abs(car.z) > SIZE / 2) putDown(car.x, car.z);
+  cullLand(land, car.x, car.z, scene.fog.far);
+  camera.position.set(car.x, car.y + 1.15, car.z);
+  camera.rotation.set(0, 0, 0);
+  camera.rotateY(Math.PI + car.yaw - car.slip * 0.28);
+  const pitch = -Math.atan(terrain.slopeAlong(car.x, car.z, car.yaw));
+  camera.rotateX(pitch * 0.6);
+  mark(car.x, car.z);
+}
+
+// Where you are on the plot.
+let mapDot = null;
+function mark(x, z) {
+  const c = $('map'), N = c.width;
+  if (!mapDot) { mapDot = document.createElement('div'); mapDot.style.cssText =
+    'position:fixed;width:7px;height:7px;border-radius:50%;background:#d8433a;border:1px solid #fff;pointer-events:none';
+    document.body.appendChild(mapDot); }
+  const r = c.getBoundingClientRect();
+  const u = (x + SIZE / 2) / SIZE, v = (z + SIZE / 2) / SIZE;
+  mapDot.style.left = (r.left + u * r.width - 4) + 'px';
+  mapDot.style.top = (r.top + v * r.height - 4) + 'px';
+}
+
+// ---------------------------------------------------------------------------
+// controls
+// ---------------------------------------------------------------------------
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  keys.add(k === 'shift' ? 'shift' : k);
+  if (k === 's' && mode === 'drive') car.downshift();
+  if (k === 'r' && terrain) putDown(car.x, car.z);
+  if (k === ' ') e.preventDefault();
+});
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase() === 'shift' ? 'shift' : e.key.toLowerCase()));
+
+let drag = null;
+$('view').addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; $('view').setPointerCapture(e.pointerId); });
+$('view').addEventListener('pointerup', () => { drag = null; });
+$('view').addEventListener('pointermove', e => {
+  if (!drag || mode !== 'fly') return;
+  fly.yaw -= (e.clientX - drag[0]) * 0.004;
+  fly.pitch = Math.max(-1.4, Math.min(1.0, fly.pitch - (e.clientY - drag[1]) * 0.004));
+  drag = [e.clientX, e.clientY];
+});
+
+$('roll').onclick = () => { $('busy').style.display = 'grid'; setTimeout(() => {
+  build(rollPlace(Math.floor(Math.random() * 1e9))); $('busy').style.display = 'none'; }, 16); };
+$('seed').onchange = () => reroll();
+$('matSel').onchange = $('formSel').onchange = () => reroll(true);
+
+// Changing the material or the form KEEPS the seed, so it stays the same land with a
+// different idea laid over it — which is the whole reason the roll is a suggestion and
+// not a decision.
+function reroll(keepSeed) {
+  $('busy').style.display = 'grid';
+  setTimeout(() => {
+    const p = rollPlace(parseInt($('seed').value, 10) || 1);
+    if (keepSeed) {
+      const m = MATERIALS.find(x => x.name === $('matSel').value);
+      if (m && m.name !== p.material) { p.material = m.name; p.tags = m.tags; Object.assign(p, rollWith(p.seed, m)); }
+      p.form = p.terrain.form = $('formSel').value;
+    }
+    build(p);
+    $('busy').style.display = 'none';
+  }, 16);
+}
+
+// Re-roll everything a material decides, at the same seed.
+function rollWith(seed, m) {
+  const saved = MATERIALS.slice();
+  MATERIALS.length = 0; MATERIALS.push(m);
+  const p = rollPlace(seed);
+  MATERIALS.length = 0; MATERIALS.push(...saved);
+  return p;
+}
+
+$('mode').onclick = () => {
+  const to = mode === 'fly' ? 'drive' : 'fly';
+  if (to === 'drive') putDown(car.x, car.z);
+  else { fly.x = car.x; fly.z = car.z; fly.y = terrain.height(car.x, car.z) + 260; }
+  setMode(to);
+};
+// Put the car under the fly camera. This is how you pick a start line: you go and look
+// at somewhere from the air, then get in.
+$('drop').onclick = () => {
+  putDown(fly.x, fly.z);
+  setMode('drive');
+};
+
+function setMode(m) {
+  mode = m;
+  $('mode').textContent = m.toUpperCase();
+  $('mode').classList.toggle('on', m === 'drive');
+}
+
+for (const m of MATERIALS) $('matSel').appendChild(new Option(m.name, m.name));
+for (const f of Object.keys(FORMS)) $('formSel').appendChild(new Option(f, f));
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+build(rollPlace(parseInt(QS.get('seed'), 10) || 2026));
+if (QS.get('mode') === 'drive') $('drop').click();
+$('busy').style.display = 'none';
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

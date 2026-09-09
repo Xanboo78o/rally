@@ -22,6 +22,10 @@ const OUT = process.env.SHOT_DIR || '/tmp/rallyprops';
 const SIZE = process.env.SHOT_SIZE || '900,420';
 const BACK = process.env.PS_BACK === '1' ? '&back=1' : '';
 const LOCK = process.env.PS_LOCK === '1' ? '&lock=1' : '';
+// PS_PAGE + PS_URL shoot any page in the repo, not just the props bench — one server,
+// one chromium, same two environment workarounds.
+const PAGE = process.env.PS_PAGE || 'props.html';
+const URLS = (process.env.PS_URL || '').split('|').filter(Boolean);
 
 const { Stage, SEGMENTS } = await import('../js/stage.js');
 const stage = new Stage();
@@ -38,7 +42,7 @@ marks.sort((a, b) => a.at - b.at);
 // rather than from the arbitrary 35m the arrows use.
 const AT = (process.env.PS_AT || '').split(',').map(Number).filter(n => n > 0);
 const args = process.argv.slice(2).map(Number).filter(n => !Number.isNaN(n));
-const want = AT.length ? AT.map(m => ({ m })) : (args.length ? args : marks.map((_, i) => i));
+const want = URLS.length ? URLS.map(q => ({ q })) : AT.length ? AT.map(m => ({ m })) : (args.length ? args : marks.map((_, i) => i));
 mkdirSync(OUT, { recursive: true });
 
 async function freePort(from = 8171, to = 8199) {
@@ -66,23 +70,25 @@ console.log('serving on', PORT);
 
 let failures = 0;
 for (const n of want) {
-  const metres = typeof n === 'object';
-  const mk = metres ? { at: n.m, k: 'at' } : marks[n];
+  const raw = typeof n === 'object' && n.q !== undefined;
+  const metres = typeof n === 'object' && n.m !== undefined;
+  const mk = raw ? { at: 0, k: n.q } : metres ? { at: n.m, k: 'at' } : marks[n];
   if (!mk) { console.log('no landmark', n); continue; }
-  const out = metres ? `${OUT}/at${n.m}${LOCK ? 'L' : ''}.png`
+  const out = raw ? `${OUT}/${n.q.replace(/[^a-z0-9]+/gi, '_')}.png`
+            : metres ? `${OUT}/at${n.m}${LOCK ? 'L' : ''}.png`
                      : `${OUT}/${String(n).padStart(2, '0')}-${mk.k}.png`;
-  const query = metres ? `at=${n.m}` : `mark=${n}`;
+  const query = raw ? n.q : metres ? `at=${n.m}` : `mark=${n}`;
   const before = hits;
   try {
     execFileSync('chromium', [
       '--headless=new', '--disable-gpu', '--enable-unsafe-swiftshader',
       '--hide-scrollbars', '--no-sandbox', `--window-size=${SIZE}`,
-      '--virtual-time-budget=4000', `--screenshot=${out}`,
-      `http://127.0.0.1:${PORT}/props.html?${query}${BACK}${LOCK}`,
-    ], { stdio: 'pipe', timeout: 120000 });
+      '--virtual-time-budget=9000', `--screenshot=${out}`,
+      `http://127.0.0.1:${PORT}/${PAGE}?${query}${BACK}${LOCK}`,
+    ], { stdio: 'pipe', timeout: 300000 });
   } catch { /* chromium exits non-zero over GL driver noise and still writes the png */ }
   await new Promise(r => setTimeout(r, 200));
-  const ok = hits > before && existsSync(out) && statSync(out).mtimeMs > Date.now() - 120000;
+  const ok = hits > before && existsSync(out) && statSync(out).mtimeMs > Date.now() - 300000;
   console.log(ok ? 'shot' : 'FAILED', mk.k, Math.round(mk.at) + 'm', ok ? '-> ' + out : '');
   if (!ok) failures++;
 }
