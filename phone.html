@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1013">
+<title>RALLY — the phone</title>
+<link rel="stylesheet" href="phone.css?v=1788997318">
+<style>
+  html, body { margin: 0; height: 100%; background: #0d1013; }
+  :root { --ink: #f2efe9; --red: #d8433a; }
+
+  /* the bench, not the game. A tab you pull up, so it never sits over the design. */
+  #bench {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    transform: translateY(calc(100% - 30px)); transition: transform .3s cubic-bezier(.2,.9,.3,1);
+    background: #06080a; border-top: 1px solid #2a3037; color: #f2efe9;
+    font: 700 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .12em;
+  }
+  #bench.up { transform: none; }
+  #bench h4 { margin: 0; padding: 9px 12px; color: #6f7b86; cursor: pointer; }
+  #bench .row { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 12px 14px; align-items: center; }
+  #bench button, #bench label {
+    padding: 9px 11px; border-radius: 9px; border: 1px solid #2f3740; background: #12171c;
+    color: #f2efe9; font: inherit; cursor: pointer;
+  }
+  #bench input[type=file] { display: none; }
+  #drop { position: fixed; inset: 0; z-index: 39; display: none; place-items: center;
+    background: rgba(216,67,58,.18); border: 3px dashed #d8433a;
+    font: 900 14px/1 ui-monospace, monospace; letter-spacing: .2em; color: #fff; }
+  #drop.on { display: grid; }
+</style>
+</head>
+<body>
+
+<div id="drop">DROP A WALLPAPER</div>
+
+<div id="bench">
+  <h4>&#9650; BENCH</h4>
+  <div class="row">
+    <label>WALLPAPER<input id="wall" type="file" accept="image/*"></label>
+    <button id="noWall">CLEAR</button>
+    <button id="win">RUN: WON</button>
+    <button id="mid">RUN: 4TH, WIDE AT T5</button>
+    <button id="dnf">RUN: CRASHED OUT</button>
+    <button id="ping">NOTIFICATION</button>
+    <button id="reset">RESET LAYOUT</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "./js/phone.js": "./js/phone.js?v=1788997318",
+  "./js/manager.js": "./js/manager.js?v=1788997318"
+} }
+</script>
+
+<script type="module">
+import { Phone } from './js/phone.js';
+
+const phone = new Phone({
+  data: {
+    place: 'THE DESCENT', length: '8.9 KM', duration: '~5 MIN',
+    best: '4:52.19', countdown: '6h 12m',
+    sprintPlace: 'THE PINES', sprintBest: '58.03', streak: 7,
+    standings: [{ name: 'Gavin', pts: 128 }, { name: 'You', pts: 121, me: 1 }, { name: 'Raven', pts: 96 }],
+  },
+  onDrive: mode => phone.notify(mode === 'stage'
+    ? 'this is where the stage would start. go and drive it'
+    : 'this is where the daily would start'),
+});
+
+const RUNS = {
+  win: { name: 'Gavin', pos: 1, of: 9, time: 292.19, best: true, streak: 7,
+    corners: [{ id: 'T5', lost: .08, kind: 'wide' }, { id: 'T11', lost: .04, kind: 'clean' }] },
+  mid: { name: 'Raven', pos: 4, of: 9, time: 298.44, streak: 3,
+    corners: [{ id: 'T5', lost: .94, kind: 'wide' }, { id: 'T2', lost: .21, kind: 'lift' }] },
+  dnf: { name: 'Raven', pos: 9, of: 9, dnf: true, crashes: [{ kind: 'huge', corner: 'T14' }],
+    corners: [{ id: 'T14', lost: 9.9, kind: 'early' }] },
+};
+for (const k of Object.keys(RUNS)) {
+  document.getElementById(k).onclick = () => { phone.open('messages'); phone.postRun(RUNS[k]); };
+}
+document.getElementById('ping').onclick = () =>
+  phone.notify('gavin just took 0.42 off you on THE PINES. thought youd want to know');
+document.getElementById('reset').onclick = () => { localStorage.removeItem('rally.phone.v1'); location.reload(); };
+document.getElementById('noWall').onclick = () => phone.setWallpaper(null);
+
+const useFile = f => f && phone.setWallpaper(URL.createObjectURL(f));
+document.getElementById('wall').onchange = e => useFile(e.target.files[0]);
+
+// Drag a PNG anywhere on the page to try it as the wallpaper.
+const drop = document.getElementById('drop');
+addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('on'); });
+addEventListener('dragleave', e => { if (e.relatedTarget === null) drop.classList.remove('on'); });
+addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('on');
+  useFile([...(e.dataTransfer.files || [])][0]);
+});
+
+// ?open=messages&run=mid — so a screen can be screenshotted without a hand on the phone.
+const QS = new URLSearchParams(location.search);
+if (QS.get('run')) { phone.open('messages'); phone.postRun(RUNS[QS.get('run')] || RUNS.mid); }
+else if (QS.get('open')) phone.open(QS.get('open'));
+
+const bench = document.getElementById('bench');
+bench.querySelector('h4').onclick = () => bench.classList.toggle('up');
+</script>
+</body>
+</html>
