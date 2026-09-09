@@ -696,7 +696,6 @@ if (AUTO) {
   $('start').classList.add('gone');
   sound.start();          // so headless runs exercise the audio path too
   if (QS.get('novoice') !== '1') voice.attach(sound.ctx);
-} };
 
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot
   // can be taken at an exact moment (mid-jump, say) rather than whenever the headless
