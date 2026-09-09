@@ -187,6 +187,66 @@ A real rally stage is one kind of road for five minutes, and a stage you learn d
 where mastery is knowing the third left tightens — is a different game from one that
 keeps showing you new things. This version is the tour; it isn't a decision.
 
+### The notes are mirrored — found 2026-09-08, NOT yet fixed
+
+Every corner on the stage bends the opposite way to the note that calls it. `turn: -34`
+is labelled `LEFT 5 LONG` and the road goes **right**.
+
+The header of `js/stage.js` asserts "negative is left", and nothing ever checked it
+against the camera. `js/main.js` documents the actual convention where it pans the
+gravel noise: *"`lateral` is positive toward the driver's LEFT (the camera is rotated by
+PI + yaw, so world +X ends up on the left)"* — and the road's lateral vector is built
+from the same `(cos head, -sin head)`. So increasing `head` swings the road to the
+driver's left, which makes a positive turn a LEFT-hander, not a right one.
+
+Confirmed three ways: by projecting a point 30m into each corner through a camera set up
+exactly as `main.js` sets up its own; by that documented convention; and by standing in
+`HAIRPIN RIGHT 1 — LAST ONE` with the view locked to the road's heading in `props.html`
+and watching the road leave to the left.
+
+It is invisible if you learn the stage by feel — you steer where the road is — which is
+why it survived. It is fatal to the design: the co-driver is the core mechanic, the
+tutorial teaches the wheel through the notes, and THE DESCENT is only drivable if you
+trust a voice that is currently lying every time it speaks.
+
+**The fix is one character:** `head -= dTurn` in `Stage._build()`. That mirrors the whole
+stage so it matches all 105 notes, which are the hand-authored design and should not
+move. Everything else — props, sections, landmarks, the atmos crossfade — is derived
+from `head` and follows for free. Nothing about the car changes; it is the same road in
+a mirror. The one thing that must flip with it is the landmark `side` default, which
+picks the outside of a corner: it becomes `seg.turn > 0 ? 1 : -1`.
+
+Not applied yet, because it changes the direction of every corner on a stage that has
+been driven, and that is Adam's call.
+
+### Landmarks
+
+Everything beside the road is scattered by a hash of the sample index — which is what
+makes eight kilometres of gravel affordable, but it also means nothing is anywhere in
+*particular*, and a road you can't see over is learned by objects. Nobody brakes at 340
+metres; they brake at the burnt-out car.
+
+So there is a second kind of prop: a **landmark**, placed by hand, written on the same
+line of `js/stage.js` as the note that mentions it — because half of them exist for
+exactly that reason. The co-driver had been calling an arch and a bridge that were not
+there. Kinds so far: `arch`, `bridge`, `banner` (gold cloth over the road — the
+championship hung its banners over a village that has never seen an engine, and it is
+also the only thing in the game that passes over your head), `chevron` (marker boards
+stepping away from you on the outside of a corner: the second channel alongside the
+voice, drawing a radius you cannot see round), `wreck`, `crowd`, `tree`.
+
+Landmarks are authored in **road space** — across, along, and up from the tarmac — so
+they don't care which way the road is pointing, and the ones that run along it resample
+as they go rather than being extruded off one sample's heading.
+
+**Open, unanswered:** nothing beside the road is *solid*. You can drive through a pine at
+90mph, so the pines only look narrow, and the crash spectrum above has nothing to hit but
+the ground. Making props solid changes every corner on the stage at once, and it needs
+soft props (bales, snowbank, brush) alongside the hard ones so a mistake isn't always
+fatal — put the soft things where the mistake is likely and the hard things where the
+road is telling you not to go.
+
+
 ### Filters
 
 `js/atmos.js` is one table where **each entry is a place, not a setting** — it carries a

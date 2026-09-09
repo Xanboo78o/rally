@@ -27,12 +27,14 @@ export const SEGMENTS = [
   // Wide, fast, forgiving. Long corners you cannot take by flicking the wheel at
   // the apex — it's too heavy — so this is where you learn to start early.
   { len: 140, turn:    0, rise:   0, w: 6.0, sec: 'dawn', note: 'STAGE START — FLAT OUT' },
-  { len: 120, turn:  -34, rise:   0, w: 5.5, sec: 'dawn', note: 'LEFT 5 LONG — START TURNING EARLY' },
+  { len: 120, turn:  -34, rise:   0, w: 5.5, sec: 'dawn', note: 'LEFT 5 LONG — START TURNING EARLY',
+    mark: [{ k: 'crowd', t: 0.55, side: 1, n: 11 }] },
   { len: 110, turn:   30, rise:  -2, w: 5.5, sec: 'dawn', note: 'RIGHT 5 LONG' },
   { len:  90, turn:    0, rise:  -3, w: 5.5, sec: 'dawn', note: 'STRAIGHT 90' },
   { len: 130, turn:  -52, rise:   0, w: 5.0, sec: 'dawn', note: 'LEFT 4 LONG' },
   { len: 100, turn:  -18, rise:   2, w: 5.5, sec: 'dawn', note: '...OPENS, FLAT' },
-  { len:  85, turn:   64, rise:   0, w: 5.0, sec: 'dawn', note: 'RIGHT 3' },
+  { len:  85, turn:   64, rise:   0, w: 5.0, sec: 'dawn', note: 'RIGHT 3',
+    mark: [{ k: 'chevron', t: 0.15, n: 3 }] },
   { len:  70, turn:   30, rise:  -1, w: 4.6, sec: 'dawn', note: '...TIGHTENS — DONT OVERTURN' },
   { len: 120, turn:    0, rise:   0, w: 5.0, sec: 'dawn', note: 'STRAIGHT 120 INTO THE TREES' },
 
@@ -43,12 +45,14 @@ export const SEGMENTS = [
   { len:  60, turn:   52, rise:   2, w: 4.0, sec: 'pines', note: 'RIGHT 3 NARROW' },
   { len:  55, turn:  -58, rise:   0, w: 3.8, sec: 'pines', note: 'LEFT 3 TIGHT' },
   { len:  70, turn:    0, rise:  -2, w: 4.0, sec: 'pines', note: 'SHORT 70' },
-  { len:  58, turn: -140, rise:   0, w: 4.0, sec: 'pines', note: 'HAIRPIN LEFT 1 — HOLD THE HANDBRAKE' },
+  { len:  58, turn: -140, rise:   0, w: 4.0, sec: 'pines', note: 'HAIRPIN LEFT 1 — HOLD THE HANDBRAKE',
+    mark: [{ k: 'chevron', t: 0.20, n: 2 }, { k: 'crowd', t: 0.5, n: 7 }] },
   { len:  80, turn:    0, rise:   4, w: 4.2, sec: 'pines', note: 'STRAIGHT, CLIMBING' },
   { len:  75, turn:   96, rise:   2, w: 4.0, sec: 'pines', note: 'RIGHT 2 — HANDBRAKE AGAIN' },
   { len:  95, turn:  -36, rise:   0, w: 4.2, sec: 'pines', note: 'LEFT 4' },
   { len:  70, turn:   60, rise:  -2, w: 4.0, sec: 'pines', note: 'RIGHT 3 OVER ROOTS' },
-  { len:  62, turn:  -72, rise:   0, w: 3.8, sec: 'pines', note: 'LEFT 2 — TREE ON THE INSIDE' },
+  { len:  62, turn:  -72, rise:   0, w: 3.8, sec: 'pines', note: 'LEFT 2 — TREE ON THE INSIDE',
+    mark: [{ k: 'tree', t: 0.45, side: -1, out: 0.9, h: 19, r: 2.2 }] },
   { len:  58, turn:    0, rise:   3, w: 4.0, sec: 'pines', note: 'SHORT 58, CRESTING' },
   { len:  65, turn:   26, rise:  -4, w: 4.2, sec: 'pines', note: 'RIGHT 4 DOWNHILL' },
   { len:  55, turn:  -34, rise:  -3, w: 3.8, sec: 'pines', note: 'LEFT 3 — DONT DROP A WHEEL' },
@@ -57,14 +61,17 @@ export const SEGMENTS = [
   // ---- THE OLD ROAD -------------------------------------------------------
   // Fast fourth-gear corners. Grabbing the handbrake here throws all your speed away
   // for rotation you didn't need — so this is where the downshift earns its keep.
-  { len: 150, turn:    0, rise:   0, w: 5.2, sec: 'ruins', note: 'FLAT OUT 150' },
+  { len: 150, turn:    0, rise:   0, w: 5.2, sec: 'ruins', note: 'FLAT OUT 150',
+    mark: [{ k: 'banner', t: 0.55 }] },
   { len: 130, turn:  -46, rise:   0, w: 5.0, sec: 'ruins', note: 'LEFT 5 FLAT — FLICK DOWN TO ROTATE' },
   { len: 120, turn:   50, rise:   0, w: 5.0, sec: 'ruins', note: 'RIGHT 5 FLAT' },
   { len:  95, turn:  -62, rise:  -2, w: 4.8, sec: 'ruins', note: 'LEFT 4' },
   { len: 105, turn:   58, rise:   0, w: 4.8, sec: 'ruins', note: 'RIGHT 4 LONG' },
-  { len:  60, turn:    0, rise:   6, w: 5.0, sec: 'ruins', note: 'CREST 60' },
+  { len:  60, turn:    0, rise:   6, w: 5.0, sec: 'ruins', note: 'CREST 60',
+    mark: [{ k: 'chevron', t: 0.35, side: 0, n: 2 }] },
   { len:  50, turn:    0, rise:  -9, w: 5.0, sec: 'ruins', note: 'CAUTION — JUMP, LAND STRAIGHT' },
-  { len:  90, turn:    0, rise:  -4, w: 5.0, sec: 'ruins', note: 'LANDING' },
+  { len:  90, turn:    0, rise:  -4, w: 5.0, sec: 'ruins', note: 'LANDING',
+    mark: [{ k: 'wreck', t: 0.6, side: 1, out: 2.0 }] },
   { len: 110, turn:  -70, rise:   0, w: 4.6, sec: 'ruins', note: 'LEFT 3 LONG' },
   { len:  85, turn:   44, rise:   0, w: 4.6, sec: 'ruins', note: 'RIGHT 4' },
   { len:  70, turn:  -50, rise:  -2, w: 4.4, sec: 'ruins', note: 'LEFT 3' },
@@ -80,9 +87,11 @@ export const SEGMENTS = [
   { len:  70, turn:    0, rise:   2, w: 3.4, sec: 'village', note: 'STRAIGHT 70' },
   { len:  46, turn:  -92, rise:   0, w: 3.2, sec: 'village', note: 'LEFT 2 SQUARE' },
   { len:  38, turn:   84, rise:   0, w: 3.0, sec: 'village', note: 'RIGHT 2 — VERY TIGHT' },
-  { len:  64, turn:    0, rise:   2, w: 3.4, sec: 'village', note: 'SHORT 64 THROUGH THE SQUARE' },
+  { len:  64, turn:    0, rise:   2, w: 3.4, sec: 'village', note: 'SHORT 64 THROUGH THE SQUARE',
+    mark: [{ k: 'crowd', t: 0.5, side: -1, n: 9, out: 0.2 }] },
   { len:  48, turn:   96, rise:   0, w: 3.2, sec: 'village', note: 'RIGHT 2 SQUARE' },
-  { len:  56, turn:  -36, rise:  -1, w: 3.4, sec: 'village', note: 'LEFT 3, UNDER THE ARCH' },
+  { len:  56, turn:  -36, rise:  -1, w: 3.4, sec: 'village', note: 'LEFT 3, UNDER THE ARCH',
+    mark: [{ k: 'arch', t: 0.40 }] },
   { len:  55, turn:    0, rise:   0, w: 3.4, sec: 'village', note: 'STRAIGHT 55, WALLS BOTH SIDES' },
   { len:  40, turn:   80, rise:   0, w: 3.2, sec: 'village', note: 'RIGHT 2 TIGHT' },
   { len:  50, turn:  -30, rise:   0, w: 3.4, sec: 'village', note: 'LEFT 4' },
@@ -104,7 +113,8 @@ export const SEGMENTS = [
   { len:  62, turn:   36, rise:   0, w: 3.4, sec: 'gorge', note: 'RIGHT 4' },
   { len:  70, turn:  -30, rise:   2, w: 3.6, sec: 'gorge', note: 'LEFT 4 LONG, ROCK ON THE RIGHT' },
   { len:  60, turn:   40, rise:   2, w: 3.6, sec: 'gorge', note: 'RIGHT 4' },
-  { len:  90, turn:    0, rise:   0, w: 3.8, sec: 'gorge', note: 'BRIDGE — 90, DONT TOUCH THE EDGE' },
+  { len:  90, turn:    0, rise:   0, w: 3.8, sec: 'gorge', note: 'BRIDGE — 90, DONT TOUCH THE EDGE',
+    mark: [{ k: 'bridge', t: 0.5, len: 84 }] },
   { len:  65, turn:  -88, rise:   3, w: 3.6, sec: 'gorge', note: 'LEFT 2 OFF THE BRIDGE' },
   { len:  80, turn:   34, rise:   4, w: 4.0, sec: 'gorge', note: 'RIGHT 4 CLIMBING' },
   { len:  55, turn:  -66, rise:   3, w: 3.8, sec: 'gorge', note: 'LEFT 2' },
@@ -114,16 +124,20 @@ export const SEGMENTS = [
   // Four hairpins stacked up a mountainside, with a long fast corner between each
   // pair so you never get into a rhythm. Everything you've learned, uphill.
   { len: 110, turn:    0, rise:  10, w: 4.4, sec: 'climb', note: 'STRAIGHT, CLIMBING HARD' },
-  { len:  60, turn: -150, rise:   6, w: 4.2, sec: 'climb', note: 'HAIRPIN LEFT 1' },
+  { len:  60, turn: -150, rise:   6, w: 4.2, sec: 'climb', note: 'HAIRPIN LEFT 1',
+    mark: [{ k: 'crowd', t: 0.5, n: 13, out: 1.0 }] },
   { len:  95, turn:   16, rise:   9, w: 4.4, sec: 'climb', note: 'RIGHT 6 UPHILL' },
-  { len:  58, turn:  145, rise:   6, w: 4.2, sec: 'climb', note: 'HAIRPIN RIGHT 1' },
+  { len:  58, turn:  145, rise:   6, w: 4.2, sec: 'climb', note: 'HAIRPIN RIGHT 1',
+    mark: [{ k: 'chevron', t: 0.25, n: 3 }] },
   { len: 100, turn:  -20, rise:   9, w: 4.4, sec: 'climb', note: 'LEFT 5 STILL CLIMBING' },
-  { len:  62, turn: -142, rise:   5, w: 4.2, sec: 'climb', note: 'HAIRPIN LEFT 1 — NOTHING ON THE OUTSIDE' },
+  { len:  62, turn: -142, rise:   5, w: 4.2, sec: 'climb', note: 'HAIRPIN LEFT 1 — NOTHING ON THE OUTSIDE',
+    mark: [{ k: 'chevron', t: 0.25, n: 3 }, { k: 'crowd', t: 0.55, side: -1, n: 9 }] },
   { len: 120, turn:   26, rise:   8, w: 4.6, sec: 'climb', note: 'RIGHT 5 LONG' },
   { len: 105, turn:  -18, rise:   8, w: 4.4, sec: 'climb', note: 'LEFT 5, ROAD FALLS AWAY' },
   { len:  58, turn:  148, rise:   5, w: 4.0, sec: 'climb', note: 'HAIRPIN RIGHT 1' },
   { len:  88, turn:  -14, rise:   7, w: 4.4, sec: 'climb', note: 'LEFT 6' },
-  { len:  56, turn:  152, rise:   4, w: 4.0, sec: 'climb', note: 'HAIRPIN RIGHT 1 — LAST ONE' },
+  { len:  56, turn:  152, rise:   4, w: 4.0, sec: 'climb', note: 'HAIRPIN RIGHT 1 — LAST ONE',
+    mark: [{ k: 'crowd', t: 0.5, n: 15, out: 0.6 }] },
   { len: 140, turn:  -24, rise:   7, w: 4.8, sec: 'climb', note: 'LEFT 5 TO THE TOP' },
   { len:  90, turn:    0, rise:   3, w: 5.0, sec: 'climb', note: 'STRAIGHT 90, OVER THE TOP' },
 
@@ -136,9 +150,11 @@ export const SEGMENTS = [
   { len: 140, turn:    0, rise:   0, w: 5.6, sec: 'plateau', note: 'STRAIGHT 140' },
   { len: 120, turn:  -40, rise:  -2, w: 5.2, sec: 'plateau', note: 'LEFT 5 LONG' },
   { len: 150, turn:    0, rise:   0, w: 5.6, sec: 'plateau', note: 'STRAIGHT 150 — BIG ONE COMING' },
-  { len:  55, turn:    0, rise:  12, w: 5.6, sec: 'plateau', note: 'CREST' },
+  { len:  55, turn:    0, rise:  12, w: 5.6, sec: 'plateau', note: 'CREST',
+    mark: [{ k: 'chevron', t: 0.25, side: 0, n: 3 }] },
   { len:  45, turn:    0, rise: -21, w: 6.0, sec: 'plateau', note: 'CAUTION — BIG JUMP, LAND STRAIGHT' },
-  { len: 110, turn:    0, rise:  -8, w: 5.6, sec: 'plateau', note: 'LANDING, DONT CUT' },
+  { len: 110, turn:    0, rise:  -8, w: 5.6, sec: 'plateau', note: 'LANDING, DONT CUT',
+    mark: [{ k: 'crowd', t: 0.35, side: 1, n: 12, out: 2.5 }, { k: 'wreck', t: 0.75, side: -1, out: 2.6 }] },
   { len: 130, turn:   34, rise:  -3, w: 5.2, sec: 'plateau', note: 'RIGHT 5 LONG' },
   { len: 110, turn:  -38, rise:  -2, w: 5.0, sec: 'plateau', note: 'LEFT 5' },
 
@@ -146,7 +162,8 @@ export const SEGMENTS = [
   // Downhill, so the car arrives at everything faster than you expect, and half of
   // it is over a crest you can't see past. This is the section that's only possible
   // if you actually listen to the notes.
-  { len:  95, turn:    0, rise:  -9, w: 5.0, sec: 'descent', note: 'DOWNHILL, BLIND 95' },
+  { len:  95, turn:    0, rise:  -9, w: 5.0, sec: 'descent', note: 'DOWNHILL, BLIND 95',
+    mark: [{ k: 'chevron', t: 0.55, side: 0, n: 2 }] },
   { len:  80, turn:   50, rise:  -7, w: 4.8, sec: 'descent', note: 'RIGHT 4 OVER CREST' },
   { len:  70, turn:  -46, rise:  -6, w: 4.6, sec: 'descent', note: 'LEFT 3' },
   { len: 110, turn:   28, rise:  -8, w: 4.8, sec: 'descent', note: 'RIGHT 5 DOWNHILL' },
@@ -154,12 +171,15 @@ export const SEGMENTS = [
   { len: 130, turn:   22, rise:  -6, w: 5.0, sec: 'descent', note: 'RIGHT 6 LONG' },
   { len:  75, turn:  -54, rise:  -3, w: 4.6, sec: 'descent', note: 'LEFT 3' },
   { len:  90, turn:   44, rise:  -4, w: 4.8, sec: 'descent', note: 'RIGHT 4' },
-  { len:  65, turn:    0, rise:   5, w: 5.0, sec: 'descent', note: 'CREST 65 — CAUTION' },
+  { len:  65, turn:    0, rise:   5, w: 5.0, sec: 'descent', note: 'CREST 65 — CAUTION',
+    mark: [{ k: 'chevron', t: 0.30, side: 0, n: 2 }] },
   { len:  70, turn:    0, rise:  -7, w: 5.0, sec: 'descent', note: 'JUMP, THEN LEFT' },
   { len:  85, turn:  -58, rise:  -2, w: 4.6, sec: 'descent', note: 'LEFT 3 ON LANDING' },
   { len: 120, turn:   36, rise:  -3, w: 5.0, sec: 'descent', note: 'RIGHT 5 LONG' },
-  { len: 100, turn:  -30, rise:   0, w: 5.2, sec: 'descent', note: 'LEFT 5 — LAST CORNER' },
-  { len: 180, turn:    0, rise:   0, w: 5.6, sec: 'descent', note: 'FLAT TO FINISH' },
+  { len: 100, turn:  -30, rise:   0, w: 5.2, sec: 'descent', note: 'LEFT 5 — LAST CORNER',
+    mark: [{ k: 'banner', t: 0.75 }] },
+  { len: 180, turn:    0, rise:   0, w: 5.6, sec: 'descent', note: 'FLAT TO FINISH',
+    mark: [{ k: 'crowd', t: 0.55, side: 0, n: 16, out: 0.4 }] },
 ];
 
 const STEP = 2.0;           // centreline sample spacing, metres
@@ -404,6 +424,124 @@ const PROPS = {
              mono: { every: 17, h: 14, out: 19, w: 3.4 }, tuft: 3, stone: 3 },
   plateau: { tuft: 4, stone: 3 },
   descent: { tree: { every: 4, near: 7, far: 28, h: 10.5, r: 2.3 }, tuft: 3, stone: 2 },
+};
+
+// ---------------------------------------------------------------------------
+// LANDMARKS — the only things beside this road placed BY HAND.
+//
+// Everything above is scattered by a hash of the sample index, which is what makes
+// eight kilometres of gravel affordable — but it also means nothing is anywhere in
+// PARTICULAR, and a road you can't see over is learned by objects. Nobody brakes at
+// 340 metres; they brake at the burnt-out car. So a landmark is pinned to a segment
+// and written on the same line as the note, because half of these exist because the
+// co-driver already promised them: he has been calling an arch and a bridge that were
+// not there.
+//
+//   mark: [{ k, t, side, out, n, len, h, r }]
+//     k     which kind, below
+//     t     0..1 along the segment
+//     side  -1 left, +1 right, 0 both. Default is the OUTSIDE of the corner, which is
+//           where a marker board and a crowd both belong.
+//     out   metres past the road edge
+//     n     how many, for the kinds that come in a group
+//     len   metres, for the kinds that run along the road instead of standing at a point
+//
+// Everything is built in ROAD SPACE — lat across (+ is right), along, and height above
+// the road surface — so a landmark is authored the way you'd describe it from the seat
+// and doesn't care which way the road happens to be pointing.
+// ---------------------------------------------------------------------------
+
+const COATS = [0x8f3b32, 0x2f4a63, 0xd8cfbc, 0x374231, 0x7a5a34, 0xa9a29a, 0x54324a];
+
+const LANDMARK = {
+  // The village arch. The note has said UNDER THE ARCH since the day the stage was
+  // written; this is the arch.
+  arch(g, m) {
+    const H = m.h || 5.4, gap = 0.55;
+    for (const side of [-1, 1]) {
+      const lat = side * (g.w + gap + 0.52), b = g.ground(lat);
+      g.box(lat, 0, b, [1.05, H - b, 1.6], g.p.wall, 0.70);
+    }
+    g.box(0, 0, H, [(g.w + gap + 1.04) * 2, 1.05, 1.9], g.p.wall, 0.58);
+  },
+
+  // The gorge bridge. Two parapets and nothing beyond them — in first person a low wall
+  // rushing past on both sides with the hillside gone is the whole of what a bridge is.
+  // It resamples as it goes, so it follows the road rather than running off a curve.
+  bridge(g, m) {
+    const len = m.len || 60, n = Math.max(2, Math.round(len / 3.4));
+    for (let k = 0; k <= n; k++) {
+      const gk = g.at((k / n - 0.5) * len);
+      for (const side of [-1, 1])
+        gk.box(side * (gk.w + 0.42), 0, -0.20, [0.46, 1.15, 3.0], gk.p.wall, 0.62 + (k % 3) * 0.07);
+    }
+  },
+
+  // Gold cloth on a beam over the road. The championship arrived from the sky and hung
+  // its banners over a road that has never seen an engine; this is the whole world in
+  // one prop, and it's also the only thing in the game that passes over your head.
+  banner(g, m) {
+    const H = m.h || 7.6, out = m.out ?? 1.4;
+    for (const side of [-1, 1]) {
+      const lat = side * (g.w + out), b = g.ground(lat);
+      g.box(lat, 0, b, [0.42, H - b + 0.5, 0.42], 0x7d6c42);
+    }
+    const span = (g.w + out) * 2;
+    g.box(0, 0, H, [span + 0.6, 0.34, 0.34], 0x7d6c42);            // the beam
+    g.box(0, 0, H - 3.0, [span * 0.80, 3.0, 0.10], 0xb99236);      // the cloth
+    for (const k of [-1, 0, 1])                                    // strips hanging off it
+      g.box(k * span * 0.26, 0, H - 4.9, [0.5, 1.95, 0.08], 0x8f6f2a);
+  },
+
+  // Marker boards on the outside of a corner, angled back at you. In first person the
+  // co-driver is one channel and this is the other: three boards stepping away from you
+  // draw the radius of a corner you cannot see round.
+  chevron(g, m) {
+    const n = m.n || 3;
+    for (const side of (m.side === 0 ? [-1, 1] : [m.side])) {
+      for (let k = 0; k < n; k++) {
+        const gk = g.at(k * 6.5);
+        const lat = side * (gk.w + 0.85 + (m.out || 0));
+        gk.box(lat, 0, gk.ground(lat) + 0.55, [1.45, 0.8, 0.1],
+               k % 2 ? 0xd8433a : 0xe8e2d4, 1, side * 0.45);
+        gk.box(lat, 0, gk.ground(lat), [0.11, 0.6, 0.11], 0x3a352d, 1, side * 0.45);
+      }
+    }
+  },
+
+  // Somebody didn't get this one right, and nobody came to take it away. This is the
+  // brake marker that actually works, because it's the only thing on the stage that
+  // looks like what happens if you're wrong.
+  wreck(g, m) {
+    const side = m.side, lat = side * (g.w + (m.out ?? 4.0));
+    const b = g.ground(lat), yaw = m.yaw ?? side * 0.8, roll = m.roll ?? side * 0.55;
+    g.box(lat, 0, b + 0.30, [1.78, 0.66, 3.95], 0x2a2622, 1, yaw, roll);
+    g.box(lat, -0.4, b + 0.92, [1.52, 0.62, 1.8], 0x1c1a18, 1, yaw, roll);
+    g.box(lat + side * 1.6, 1.8, b, [0.7, 0.22, 1.1], 0x161412, 1, yaw * 1.6);  // a door, thrown
+  },
+
+  // People standing where they should not be standing. They do a job as well as being
+  // the thing rally looks like: a crowd leaning into a corner tells you it's tight
+  // before he calls it.
+  crowd(g, m) {
+    const n = m.n || 9;
+    for (const side of (m.side === 0 ? [-1, 1] : [m.side])) {
+      for (let k = 0; k < n; k++) {
+        const j = (k * 37 + (side > 0 ? 11 : 4)) % 23;
+        const gk = g.at(((k % 6) - 2.5) * 2.9 + (j % 4) * 0.8);
+        const lat = side * (gk.w + 1.5 + (m.out || 0) + (j % 5) * 1.05);
+        const b = gk.ground(lat), h = 1.46 + (j % 4) * 0.07;
+        gk.box(lat, 0, b, [0.44, h, 0.30], COATS[j % COATS.length], 0.8 + (j % 3) * 0.1);
+        gk.sphere(lat, 0, b + h + 0.13, 0.135, 0xbe9c7e);
+      }
+    }
+  },
+
+  // One tree, exactly where the note says there's a tree.
+  tree(g, m) {
+    const lat = m.side * (g.w + (m.out ?? 1.4));
+    g.cone(lat, 0, g.ground(lat) - 0.35, m.r || 2.4, m.h || 16, g.p.tree);
+  },
 };
 
 export function buildStageMesh(THREE, stage) {
@@ -674,6 +812,89 @@ export function buildStageMesh(THREE, stage) {
     });
 
     group.add(chunk);
+  }
+
+  // ---- landmarks -----------------------------------------------------------
+  // Not chunked. There are twenty of them across eight kilometres, so they all go into
+  // one instanced mesh per shape — three draw calls for the lot, which is cheaper than
+  // giving the culler four hundred separate little meshes to think about every frame.
+  {
+    const LM = { box: [], sph: [], cone: [] };
+
+    // First and last sample of each segment, so a mark's `t` can land on a real sample.
+    const first = [], last = [];
+    S.forEach((s, i) => { if (first[s.seg] === undefined) first[s.seg] = i; last[s.seg] = i; });
+
+    // The road-space frame at one sample. `at()` hands back the same thing a few metres
+    // up or down the road, which is how a bridge or a run of boards follows a curve
+    // instead of being extruded off one sample's heading.
+    const frame = i => {
+      const s = S[i];
+      const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+      const fx = Math.sin(s.head), fz = Math.cos(s.head);
+      const put = (list, lat, along, base, size, c, shade, yaw, roll) => list.push({
+        x: s.x + rx * lat + fx * along,
+        y: s.y + base + size[1] * 0.5,
+        z: s.z + rz * lat + fz * along,
+        sx: size[0], sy: size[1], sz: size[2],
+        yaw: -s.head + (yaw || 0), roll: roll || 0, c, shade: shade || 1,
+      });
+      const g = {
+        w: s.w, p: pal[i],
+        // How far the ground has fallen from road level this far out. Everything stands
+        // on this, or it hovers over the verge the way every prop here used to.
+        ground: lat => groundProfile(s.y, Math.abs(lat) - s.w, FLOOR, s.span) - s.y,
+        at(d) {
+          let j = i, target = s.dist + d;
+          while (j > 0 && S[j].dist > target) j--;
+          while (j < S.length - 1 && S[j].dist < target) j++;
+          return frame(j);
+        },
+        box: (lat, along, base, size, c, shade, yaw, roll) =>
+          put(LM.box, lat, along, base, size, c, shade, yaw, roll),
+        sphere: (lat, along, cy, r, c) =>
+          put(LM.sph, lat, along, cy - r, [r * 2, r * 2, r * 2], c),
+        cone: (lat, along, base, r, h, c) =>
+          put(LM.cone, lat, along, base, [r, h, r], c),
+      };
+      return g;
+    };
+
+    SEGMENTS.forEach((seg, si) => {
+      if (!seg.mark) return;
+      const a = first[si], b = last[si];
+      for (const mk of seg.mark) {
+        const build = LANDMARK[mk.k];
+        if (!build) continue;
+        // Default side is the OUTSIDE of the corner: a right-hander turns positive, so
+        // its outside is the left. A straight has no outside, so it gets the right.
+        build(frame(Math.round(a + (b - a) * (mk.t ?? 0.5))),
+              { ...mk, side: mk.side ?? (seg.turn > 0 ? -1 : 1) });
+      }
+    });
+
+    const eul = new THREE.Euler(0, 0, 0, 'YXZ');
+    const sphGeo = new THREE.SphereGeometry(1, 7, 5);
+    for (const [geo, list] of [[slabGeo, LM.box], [sphGeo, LM.sph], [treeGeo, LM.cone]]) {
+      if (!list.length) continue;
+      const im = new THREE.InstancedMesh(geo, propMat, list.length);
+      list.forEach((o, k) => {
+        pos.set(o.x, o.y, o.z);
+        scl.set(o.sx, o.sy, o.sz);
+        // Roll is about the object's own long axis, and YXZ applies Z first, so a wreck
+        // tips onto its side before it's turned to face down the road.
+        eul.set(0, o.yaw, o.roll);
+        q.setFromEuler(eul);
+        m.compose(pos, q, scl);
+        im.setMatrixAt(k, m);
+        col.setHex(o.c);
+        col.multiplyScalar(o.shade);
+        im.setColorAt(k, col);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      group.add(im);
+    }
   }
 
   // ---- start area ----------------------------------------------------------
