@@ -650,7 +650,9 @@ const menu = new Menu({
     // The context is created inside this click, so it should be running — but if the
     // browser handed it back suspended anyway, this is the last gesture we get.
     sound.ctx?.resume?.();
-    voice.attach(sound.ctx, sound.master);
+    // ?novoice=1 leaves the co-driver out of the graph entirely. It's a diagnostic: if
+    // the game has sound with it and not without it, the fault is mine and it's in here.
+    if (QS.get('novoice') !== '1') voice.attach(sound.ctx, sound.master);
     look.enable();        // needs the tap: iOS won't hand over the sensor otherwise
     menu.hide();
     menu.unpause();
@@ -693,7 +695,7 @@ if (!AUTO) { $('start').classList.add('gone'); menu.show('home'); }
 if (AUTO) {
   $('start').classList.add('gone');
   sound.start();          // so headless runs exercise the audio path too
-  voice.attach(sound.ctx, sound.master);
+  if (QS.get('novoice') !== '1') voice.attach(sound.ctx, sound.master);
 } };
 
   // ?at=<seconds> fast-forwards the simulation before the first frame, so a screenshot

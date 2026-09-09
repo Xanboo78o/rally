@@ -92,17 +92,24 @@ export class Voice {
   }
 
   // Called once the game's AudioContext exists, so the co-driver shares its clock.
+  // Nothing in here may ever take the rest of the game's audio down with it. He is the
+  // last thing added to the graph and the first thing that should be dropped: an engine
+  // with no co-driver is a game, a co-driver with no engine is silence.
   async attach(ctx, out) {
-    this.ctx = ctx;
-    this.radio = makeRadio(ctx, 'helmet');
-    this.gain = ctx.createGain();
-    this.gain.gain.value = 1.0;
-    this.radio.output.connect(this.gain);
-    this.gain.connect(out || ctx.destination);
     try {
+      this.ctx = ctx;
+      this.radio = makeRadio(ctx, 'helmet');
+      this.gain = ctx.createGain();
+      this.gain.gain.value = 1.0;
+      this.radio.output.connect(this.gain);
+      this.gain.connect(out || ctx.destination);
       this.manifest = await (await fetch('./vo/manifest.json')).json();
       this.ready = true;
-    } catch { this.ready = false; }
+    } catch (e) {
+      this.ready = false;
+      try { this.gain?.disconnect(); this.radio?.output?.disconnect(); } catch {}
+      console.warn('co-driver off:', e && e.message);
+    }
   }
 
   async _buf(slug) {
@@ -125,6 +132,10 @@ export class Voice {
   // one call — a pause between "left" and "four" would be a different note.
   async say(slugs) {
     if (!this.ready || !slugs.length) return;
+    try { return await this._say(slugs); } catch (e) { console.warn('co-driver:', e && e.message); }
+  }
+
+  async _say(slugs) {
     const bufs = [];
     for (const s of slugs) {
       const b = await this._buf(s);
