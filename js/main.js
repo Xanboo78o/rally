@@ -5,7 +5,8 @@
 // the right way, and does the jump feel huge.
 
 import * as THREE from 'three';
-import { Stage, buildStageMesh, SEGMENTS } from './stage.js';
+import { Stage, buildStageMesh } from './stage.js';
+import { TRACKS, DEFAULT_TRACK } from './tracks.js';
 import { Car } from './car.js';
 import { Wheel, TUNE } from './wheel.js';
 import { Controls } from './controls.js';
@@ -89,7 +90,11 @@ const sun = new THREE.DirectionalLight(0xfff2dd, 1.15);
 sun.position.set(-90, 140, 60);
 scene.add(sun);
 
-const stage = new Stage();
+// ?track=<key> picks a road. The sections are in js/tracks.js; a track is a list of
+// them, and the whole game is indifferent to which one it was handed.
+const TRACK = TRACKS[QS.get('track')] ? QS.get('track') : DEFAULT_TRACK;
+const stage = new Stage(TRACK);
+const SEGMENTS = stage.segments;
 scene.add(buildStageMesh(THREE, stage));
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,15 @@
 //
 //   node tools/simcheck.mjs [--v]
 
-import { Stage, SEGMENTS } from '../js/stage.js';
+import { Stage } from '../js/stage.js';
+
+// SIM_TRACK picks the road to measure. The sections live in js/tracks.js now, so a
+// "is this drivable" run can be pointed at any of them.
+const TRACK = process.env.SIM_TRACK || 'full';
+const { trackSegments, TRACKS } = await import('../js/tracks.js');
+// What THIS track is for. See the `wants` note in js/tracks.js.
+const WANTS = (TRACKS[TRACK] && TRACKS[TRACK].wants) || { time: [240, 400], jump: true, spread: 25 };
+const SEGMENTS = trackSegments(TRACK);
 import { Car } from '../js/car.js';
 import { Wheel } from '../js/wheel.js';
 
@@ -15,7 +23,7 @@ const angDiff = a => Math.atan2(Math.sin(a), Math.cos(a));
 const fmt = t => Math.floor(t / 60) + ':' + (t % 60 < 10 ? '0' : '') + (t % 60).toFixed(2);
 
 function run(lookahead = 26, gain = 2.1, hbThresh = 0.42, from = 0, to = null) {
-  const stage = new Stage();
+  const stage = new Stage(TRACK);
   const car = new Car();
   const wheel = new Wheel();
 
@@ -92,7 +100,7 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42, from = 0, to = null) {
 // about a minute, and a person is roughly 1.3x the autopilot, so these want to land
 // around 40-55s of autopilot time for that claim to be true.
 if (process.argv.includes('--sprint')) {
-  const st = new Stage();
+  const st = new Stage(TRACK);
   console.log('THE DAILY — every section, from a standing start\n');
   console.log('  section      length   autopilot    a person, roughly');
   let bad = 0;
@@ -222,13 +230,24 @@ const varied = Math.max(...spread) - Math.min(...spread);
 
 console.log('\nVERDICT');
 console.log('  drivable        ', r.ok ? 'pass' : 'FAIL');
-console.log('  ~5 minutes      ', r.t > 240 && r.t < 400 ? 'pass (' + fmt(r.t) + ')' : 'off target (' + fmt(r.t) + ')');
-console.log('  has a real jump ', big.length ? 'pass (' + big[0].dur.toFixed(2) + 's)' : 'FAIL — nothing over 0.5s');
+// Length is judged against what the track is FOR, not against one number. THE FULL
+// STAGE is the five-minute tour; everything else in js/tracks.js is a short one, and the
+// daily wants to be about a minute and a half. Reporting a 1:38 sprint as "off target"
+// was noise, and noise in a checker is how a real failure gets scrolled past.
+const [lo, hi] = WANTS.time;
+console.log('  length          ', r.t > lo && r.t < hi
+  ? 'pass (' + fmt(r.t) + ')'
+  : 'off target (' + fmt(r.t) + ', wants ' + fmt(lo) + '-' + fmt(hi) + ')');
+console.log('  has a real jump ', WANTS.jump
+  ? (big.length ? 'pass (' + big[0].dur.toFixed(2) + 's)' : 'FAIL — nothing over 0.5s')
+  : (big.length ? 'pass (' + big[0].dur.toFixed(2) + 's — not required here)' : 'none, and none wanted'));
 // As a FRACTION of stage time, not an absolute — the old 4s budget was written for a
 // 37-second stage and means nothing on one seven times longer.
 const offPct = r.offTime / r.t * 100;
 console.log('  stays on road   ', offPct < 10 ? 'pass (' + offPct.toFixed(1) + '% of the run)' : 'loose (' + offPct.toFixed(1) + '%)');
-console.log('  pace varies     ', varied > 25 ? 'pass (' + varied.toFixed(0) + ' mph spread)' : 'FLAT (' + varied.toFixed(0) + ' mph spread)');
+console.log('  pace varies     ', varied > WANTS.spread
+  ? 'pass (' + varied.toFixed(0) + ' mph spread)'
+  : 'FLAT (' + varied.toFixed(0) + ' mph, wants ' + WANTS.spread + ')');
 console.log('  road never folds', cross.folds.length ? 'FAIL (' + cross.folds.length + ' folds)' : 'pass');
 const G = global.__ground;
 // A metre of overlap is narrower than the car, tucked inside the tightest hairpins.

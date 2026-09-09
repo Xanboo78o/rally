@@ -180,6 +180,60 @@ Also open: whether a world is **one plot with several stages on it** — a month
 planet, four stages on the same mountain, and you recognise a ridge from Tuesday — or
 one plot per stage. The first is what a real rally is.
 
+## Tracks, written in code
+
+Adam, 2026-09-09: *"okay maybe instead we'll make them in code ToT"* — so the maker goes
+on the shelf (it still works: `maker.html`, and `js/terrain.js` / `js/materials.js` /
+`js/land.js` are intact) and the roads get written by hand.
+
+**The unit of authoring is a SECTION, not a stage.** A section is forty to ninety seconds
+of one kind of road with a name; a track is an ordered list of them. They compose for
+nothing, and that isn't a feature anyone built — it falls out of the road being stored as
+a **turn sequence rather than as positions**. There is no map and no closed loop, so the
+builder keeps integrating from wherever the last section left it and any two pieces join
+perfectly, always. Eight sections is not one stage, it's however many stages you write
+down. It is also exactly what a real rally is: the same roads, in different orders, on
+different days.
+
+Everything lives in `js/tracks.js`. The original 8.9 km is now its eight sections, byte
+for byte, plus three new ones:
+
+- **THE NARROWS** (`gorge`) — the opposite character to THE GORGE in the same place. The
+  gorge is linked corners with no rest; this is 200-metre flat-out straights with rock a
+  metre off each wheel, broken by corners that are *square*. A place can have more than
+  one road through it.
+- **THE TERRACES** (`ruins`) — a shelf, a hairpin down to the next shelf, repeat. The
+  rhythm is deliberately regular so the *descent* can break it: every hairpin arrives from
+  further downhill than the last, so you meet each one faster while the corner itself
+  stays identical.
+- **THE CAUSEWAY** (`plateau`) — dead flat, and the corners are barely corners: a 6 that
+  goes on for two hundred metres. Which is where the heavy wheel bites hardest, because
+  even a corner you can take flat has to be *started* eighty metres out, and you cannot
+  see eighty metres of anything from the seat.
+
+Four tracks: **THE FULL STAGE** (the eight originals — still the tutorial, and the only
+one that teaches), **SHAKEDOWN**, **THE BIND**, **THE LONG RUN**. `?track=<key>` picks
+one. Sections are reused across tracks on purpose.
+
+### The checkers
+
+`tools/trackcheck.mjs` is the gate. It verifies **every corner call against the
+geometry** — the failure that cost a week — plus every note against the 129 recorded
+clips (a word he never said comes out as silence at 90mph), hairpin calls against actual
+degrees, landmark kinds, and width steps at section joins.
+
+`tools/simcheck.mjs` now judges a track against **what that track is for**, declared as
+`wants` on the track itself. THE BIND has no jump and a narrow speed band deliberately;
+reporting that as a failure is noise, and noise in a checker is how a real failure gets
+scrolled past.
+
+Both earned their keep immediately. simcheck called the first SHAKEDOWN flat — *one* mph
+of speed variation across the whole thing, which is not a track, it's a corridor — so it
+got THE VILLAGE on the end and now spreads 29. And it caught THE NARROWS averaging 56 mph
+when the entire idea of the section is that you arrive at a 90 at ninety: the straights
+were 120-150 m, which isn't enough road to build speed from a corner exit. At 190-280 m
+it does what its own comment claims.
+
 ## Driving
 
 **First person.** Which promotes the co-driver from flavour to the core mechanic: you
@@ -264,37 +318,42 @@ A real rally stage is one kind of road for five minutes, and a stage you learn d
 where mastery is knowing the third left tightens — is a different game from one that
 keeps showing you new things. This version is the tour; it isn't a decision.
 
-### The notes are mirrored — found 2026-09-08, NOT yet fixed
+### The notes were mirrored — found 2026-09-08, fixed 2026-09-09
 
-Every corner on the stage bends the opposite way to the note that calls it. `turn: -34`
-is labelled `LEFT 5 LONG` and the road goes **right**.
+Every corner on the stage bent the opposite way to the note that called it. `turn: -34`
+was labelled `LEFT 5 LONG` and the road went **right**. All 105 of them.
 
-The header of `js/stage.js` asserts "negative is left", and nothing ever checked it
-against the camera. `js/main.js` documents the actual convention where it pans the
-gravel noise: *"`lateral` is positive toward the driver's LEFT (the camera is rotated by
-PI + yaw, so world +X ends up on the left)"* — and the road's lateral vector is built
-from the same `(cos head, -sin head)`. So increasing `head` swings the road to the
-driver's left, which makes a positive turn a LEFT-hander, not a right one.
+The header of `js/stage.js` asserted "negative is left" and nothing ever checked it
+against the camera. `js/main.js` documents the real convention where it pans the gravel
+noise — *"`lateral` is positive toward the driver's LEFT (the camera is rotated by PI +
+yaw, so world +X ends up on the left)"* — and the road's lateral vector is built from
+that same `(cos head, -sin head)`. So increasing `head` swings the road to the driver's
+left, which makes a **positive** turn a left-hander. `js/car.js` says the same thing
+independently where it negates the steering.
 
 Confirmed three ways: by projecting a point 30m into each corner through a camera set up
 exactly as `main.js` sets up its own; by that documented convention; and by standing in
 `HAIRPIN RIGHT 1 — LAST ONE` with the view locked to the road's heading in `props.html`
 and watching the road leave to the left.
 
-It is invisible if you learn the stage by feel — you steer where the road is — which is
-why it survived. It is fatal to the design: the co-driver is the core mechanic, the
+It was invisible because you drive where the road is, not where the voice says — which
+is why it survived. It was fatal to the design: the co-driver is the core mechanic, the
 tutorial teaches the wheel through the notes, and THE DESCENT is only drivable if you
-trust a voice that is currently lying every time it speaks.
+trust a voice that was lying every time it spoke.
 
-**The fix is one character:** `head -= dTurn` in `Stage._build()`. That mirrors the whole
-stage so it matches all 105 notes, which are the hand-authored design and should not
-move. Everything else — props, sections, landmarks, the atmos crossfade — is derived
-from `head` and follows for free. Nothing about the car changes; it is the same road in
-a mirror. The one thing that must flip with it is the landmark `side` default, which
-picks the outside of a corner: it becomes `seg.turn > 0 ? 1 : -1`.
+**The fix, and a changed mind.** The first recommendation here was to flip the geometry —
+`head -= dTurn`, one character — on the grounds that the notes are the hand-authored
+design and shouldn't move. That was wrong, and it would have mirrored a stage that had
+already been driven and learned. The corner *sequence* is the design; whether the
+co-driver says "left" or "right" is a fact about the road, not a creative choice. So the
+words moved instead: every `LEFT` and `RIGHT` inside a note string was swapped, which is
+exactly right, because the notes had been written for the mirror image of the real road —
+mirroring them makes them true, and keeps every internal relationship in a note ("corner
+one way, rock on the other side") intact.
 
-Not applied yet, because it changes the direction of every corner on a stage that has
-been driven, and that is Adam's call.
+**The road did not move at all.** Same 8.9 km, same corners, same everything he has
+learned. 73 corner calls now verified against the projected geometry, 0 wrong, and that
+check is worth keeping around for every track written from here.
 
 ### Landmarks
 

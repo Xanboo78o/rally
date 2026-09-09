@@ -1,186 +1,29 @@
-// stage.js — ONE hand-authored stage, about five minutes long. Every corner below is
-// placed by hand, in order, the way you'd write pace notes. Nothing here is generated:
-// the builder just walks this list and lays road along it.
+import { trackSegments, DEFAULT_TRACK } from './tracks.js';
+
+// stage.js — turning a list of segments into a road, the ground under it, and the
+// things standing beside it.
 //
-// It is also the TUTORIAL, and it teaches in the only voice the game has — the notes.
-// The first time a technique is the only way through, the co-driver says so out loud;
-// after that he trusts you and just calls the corner. So the order of the sections is
-// the order you learn things:
+// The segments themselves live in js/tracks.js now, as named SECTIONS that tracks are
+// assembled from. Nothing here knows or cares which track it was handed: the builder
+// walks whatever list it is given and lays road along it, and because the road is stored
+// as a TURN SEQUENCE rather than as positions, any two sections join perfectly with no
+// geometry to reconcile.
 //
-//   THE DROP ZONE  wide and fast          the wheel is heavy — start turning early
-//   THE PINES      narrow and dark        the handbrake, on a hairpin with no room
-//   THE OLD ROAD   fast and open          the downshift, where a handbrake would kill you
-//   THE VILLAGE    square 90s             placing the car, one metre at a time
-//   THE GORGE      linked, no run-off     rhythm — you can't fix a corner you entered wrong
-//   THE CLIMB      four stacked hairpins  everything you've learned, uphill
-//   THE PLATEAU    flat out               the big jump, and landing it straight
-//   THE DESCENT    downhill and blind     trusting the notes over crests you can't see
+// The segment fields, for reference — the authoring notes are in js/tracks.js:
 //
-// turn  = degrees swept across the segment, negative is left
-// rise  = metres climbed (or dropped) across the segment
-// w     = road half-width in metres
-// sec   = which place you're in — the look and the sound come from js/atmos.js
-// note  = what the co-driver calls, ~55m before you arrive
+//   len   metres
+//   turn  degrees swept. POSITIVE IS LEFT. This used to claim the opposite and nobody
+//         checked it against the camera, so all 105 notes on the original stage called
+//         the wrong way round until 2026-09-09. The camera is rotated by PI + yaw, which
+//         puts world +X on the driver's LEFT (main.js says so where it pans the gravel),
+//         and the road's lateral vector is the same (cos head, -sin head) — so
+//         increasing head swings the road left. tools/trackcheck.mjs now proves it.
+//   rise  metres climbed or dropped across the segment
+//   w     road half-width in metres
+//   sec   which PLACE you're in — the look and the sound come from js/atmos.js
+//   note  what the co-driver calls, ~55m before you arrive
+//   mark  hand-placed landmarks
 
-export const SEGMENTS = [
-  // ---- THE DROP ZONE ------------------------------------------------------
-  // Wide, fast, forgiving. Long corners you cannot take by flicking the wheel at
-  // the apex — it's too heavy — so this is where you learn to start early.
-  { len: 140, turn:    0, rise:   0, w: 6.0, sec: 'dawn', note: 'STAGE START — FLAT OUT' },
-  { len: 120, turn:  -34, rise:   0, w: 5.5, sec: 'dawn', note: 'LEFT 5 LONG — START TURNING EARLY',
-    mark: [{ k: 'crowd', t: 0.55, side: 1, n: 11 }] },
-  { len: 110, turn:   30, rise:  -2, w: 5.5, sec: 'dawn', note: 'RIGHT 5 LONG' },
-  { len:  90, turn:    0, rise:  -3, w: 5.5, sec: 'dawn', note: 'STRAIGHT 90' },
-  { len: 130, turn:  -52, rise:   0, w: 5.0, sec: 'dawn', note: 'LEFT 4 LONG' },
-  { len: 100, turn:  -18, rise:   2, w: 5.5, sec: 'dawn', note: '...OPENS, FLAT' },
-  { len:  85, turn:   64, rise:   0, w: 5.0, sec: 'dawn', note: 'RIGHT 3',
-    mark: [{ k: 'chevron', t: 0.15, n: 3 }] },
-  { len:  70, turn:   30, rise:  -1, w: 4.6, sec: 'dawn', note: '...TIGHTENS — DONT OVERTURN' },
-  { len: 120, turn:    0, rise:   0, w: 5.0, sec: 'dawn', note: 'STRAIGHT 120 INTO THE TREES' },
-
-  // ---- THE PINES ----------------------------------------------------------
-  // The road halves in width and the trees come to the edge of it. First hairpin:
-  // there is no radius here, so the handbrake is the only way round.
-  { len:  90, turn:  -44, rise:   3, w: 4.2, sec: 'pines', note: 'LEFT 4 INTO TREES' },
-  { len:  60, turn:   52, rise:   2, w: 4.0, sec: 'pines', note: 'RIGHT 3 NARROW' },
-  { len:  55, turn:  -58, rise:   0, w: 3.8, sec: 'pines', note: 'LEFT 3 TIGHT' },
-  { len:  70, turn:    0, rise:  -2, w: 4.0, sec: 'pines', note: 'SHORT 70' },
-  { len:  58, turn: -140, rise:   0, w: 4.0, sec: 'pines', note: 'HAIRPIN LEFT 1 — HOLD THE HANDBRAKE',
-    mark: [{ k: 'chevron', t: 0.20, n: 2 }, { k: 'crowd', t: 0.5, n: 7 }] },
-  { len:  80, turn:    0, rise:   4, w: 4.2, sec: 'pines', note: 'STRAIGHT, CLIMBING' },
-  { len:  75, turn:   96, rise:   2, w: 4.0, sec: 'pines', note: 'RIGHT 2 — HANDBRAKE AGAIN' },
-  { len:  95, turn:  -36, rise:   0, w: 4.2, sec: 'pines', note: 'LEFT 4' },
-  { len:  70, turn:   60, rise:  -2, w: 4.0, sec: 'pines', note: 'RIGHT 3 OVER ROOTS' },
-  { len:  62, turn:  -72, rise:   0, w: 3.8, sec: 'pines', note: 'LEFT 2 — TREE ON THE INSIDE',
-    mark: [{ k: 'tree', t: 0.45, side: -1, out: 0.9, h: 19, r: 2.2 }] },
-  { len:  58, turn:    0, rise:   3, w: 4.0, sec: 'pines', note: 'SHORT 58, CRESTING' },
-  { len:  65, turn:   26, rise:  -4, w: 4.2, sec: 'pines', note: 'RIGHT 4 DOWNHILL' },
-  { len:  55, turn:  -34, rise:  -3, w: 3.8, sec: 'pines', note: 'LEFT 3 — DONT DROP A WHEEL' },
-  { len: 110, turn:   40, rise:  -2, w: 4.4, sec: 'pines', note: 'RIGHT 4 LONG, OUT OF THE TREES' },
-
-  // ---- THE OLD ROAD -------------------------------------------------------
-  // Fast fourth-gear corners. Grabbing the handbrake here throws all your speed away
-  // for rotation you didn't need — so this is where the downshift earns its keep.
-  { len: 150, turn:    0, rise:   0, w: 5.2, sec: 'ruins', note: 'FLAT OUT 150',
-    mark: [{ k: 'banner', t: 0.55 }] },
-  { len: 130, turn:  -46, rise:   0, w: 5.0, sec: 'ruins', note: 'LEFT 5 FLAT — FLICK DOWN TO ROTATE' },
-  { len: 120, turn:   50, rise:   0, w: 5.0, sec: 'ruins', note: 'RIGHT 5 FLAT' },
-  { len:  95, turn:  -62, rise:  -2, w: 4.8, sec: 'ruins', note: 'LEFT 4' },
-  { len: 105, turn:   58, rise:   0, w: 4.8, sec: 'ruins', note: 'RIGHT 4 LONG' },
-  { len:  60, turn:    0, rise:   6, w: 5.0, sec: 'ruins', note: 'CREST 60',
-    mark: [{ k: 'chevron', t: 0.35, side: 0, n: 2 }] },
-  { len:  50, turn:    0, rise:  -9, w: 5.0, sec: 'ruins', note: 'CAUTION — JUMP, LAND STRAIGHT' },
-  { len:  90, turn:    0, rise:  -4, w: 5.0, sec: 'ruins', note: 'LANDING',
-    mark: [{ k: 'wreck', t: 0.6, side: 1, out: 2.0 }] },
-  { len: 110, turn:  -70, rise:   0, w: 4.6, sec: 'ruins', note: 'LEFT 3 LONG' },
-  { len:  85, turn:   44, rise:   0, w: 4.6, sec: 'ruins', note: 'RIGHT 4' },
-  { len:  70, turn:  -50, rise:  -2, w: 4.4, sec: 'ruins', note: 'LEFT 3' },
-  { len: 130, turn:    0, rise:  -3, w: 4.8, sec: 'ruins', note: 'STRAIGHT 130' },
-
-  // ---- THE VILLAGE --------------------------------------------------------
-  // Square corners between walls. Nothing here is fast; all of it is about putting
-  // the car exactly where you meant to put it.
-  { len:  80, turn:    0, rise:  -2, w: 4.0, sec: 'village', note: 'INTO THE VILLAGE — NARROWS' },
-  { len:  45, turn:  -84, rise:   0, w: 3.4, sec: 'village', note: 'LEFT 2 SQUARE' },
-  { len:  60, turn:    0, rise:   0, w: 3.4, sec: 'village', note: 'SHORT 60 BETWEEN WALLS' },
-  { len:  42, turn:   88, rise:   0, w: 3.2, sec: 'village', note: 'RIGHT 2 SQUARE' },
-  { len:  70, turn:    0, rise:   2, w: 3.4, sec: 'village', note: 'STRAIGHT 70' },
-  { len:  46, turn:  -92, rise:   0, w: 3.2, sec: 'village', note: 'LEFT 2 SQUARE' },
-  { len:  38, turn:   84, rise:   0, w: 3.0, sec: 'village', note: 'RIGHT 2 — VERY TIGHT' },
-  { len:  64, turn:    0, rise:   2, w: 3.4, sec: 'village', note: 'SHORT 64 THROUGH THE SQUARE',
-    mark: [{ k: 'crowd', t: 0.5, side: -1, n: 9, out: 0.2 }] },
-  { len:  48, turn:   96, rise:   0, w: 3.2, sec: 'village', note: 'RIGHT 2 SQUARE' },
-  { len:  56, turn:  -36, rise:  -1, w: 3.4, sec: 'village', note: 'LEFT 3, UNDER THE ARCH',
-    mark: [{ k: 'arch', t: 0.40 }] },
-  { len:  55, turn:    0, rise:   0, w: 3.4, sec: 'village', note: 'STRAIGHT 55, WALLS BOTH SIDES' },
-  { len:  40, turn:   80, rise:   0, w: 3.2, sec: 'village', note: 'RIGHT 2 TIGHT' },
-  { len:  50, turn:  -30, rise:   0, w: 3.4, sec: 'village', note: 'LEFT 4' },
-  { len:  44, turn: -100, rise:  -2, w: 3.2, sec: 'village', note: 'LEFT 2 SQUARE, THEN OUT' },
-  { len: 100, turn:   20, rise:  -3, w: 4.0, sec: 'village', note: 'RIGHT 5, OUT OF THE VILLAGE' },
-
-  // ---- THE GORGE ----------------------------------------------------------
-  // Linked corners with rock either side. There is no run-off and no time to reset
-  // between them, so a corner you enter wrong stays wrong for the next four.
-  { len:  70, turn:  -38, rise:  -4, w: 3.6, sec: 'gorge', note: 'LEFT 4 INTO THE GORGE — NARROWS' },
-  { len:  55, turn:   46, rise:  -3, w: 3.4, sec: 'gorge', note: 'RIGHT 3' },
-  { len:  50, turn:  -50, rise:  -2, w: 3.4, sec: 'gorge', note: 'LEFT 3' },
-  { len:  48, turn:   54, rise:   0, w: 3.4, sec: 'gorge', note: 'RIGHT 3' },
-  { len:  46, turn:  -56, rise:   0, w: 3.4, sec: 'gorge', note: 'LEFT 3 — KEEP THE RHYTHM' },
-  { len:  52, turn:  -44, rise:   0, w: 3.4, sec: 'gorge', note: '...TIGHTENS' },
-  { len:  58, turn:   62, rise:  -2, w: 3.4, sec: 'gorge', note: 'RIGHT 2 OVER WATER' },
-  { len:  54, turn:   48, rise:  -2, w: 3.4, sec: 'gorge', note: 'RIGHT 3' },
-  { len:  50, turn:  -52, rise:  -2, w: 3.2, sec: 'gorge', note: 'LEFT 3 — NARROWEST POINT' },
-  { len:  62, turn:   36, rise:   0, w: 3.4, sec: 'gorge', note: 'RIGHT 4' },
-  { len:  70, turn:  -30, rise:   2, w: 3.6, sec: 'gorge', note: 'LEFT 4 LONG, ROCK ON THE RIGHT' },
-  { len:  60, turn:   40, rise:   2, w: 3.6, sec: 'gorge', note: 'RIGHT 4' },
-  { len:  90, turn:    0, rise:   0, w: 3.8, sec: 'gorge', note: 'BRIDGE — 90, DONT TOUCH THE EDGE',
-    mark: [{ k: 'bridge', t: 0.5, len: 84 }] },
-  { len:  65, turn:  -88, rise:   3, w: 3.6, sec: 'gorge', note: 'LEFT 2 OFF THE BRIDGE' },
-  { len:  80, turn:   34, rise:   4, w: 4.0, sec: 'gorge', note: 'RIGHT 4 CLIMBING' },
-  { len:  55, turn:  -66, rise:   3, w: 3.8, sec: 'gorge', note: 'LEFT 2' },
-  { len:  75, turn:   30, rise:   5, w: 4.0, sec: 'gorge', note: 'RIGHT 4, OUT OF THE DARK' },
-
-  // ---- THE CLIMB ----------------------------------------------------------
-  // Four hairpins stacked up a mountainside, with a long fast corner between each
-  // pair so you never get into a rhythm. Everything you've learned, uphill.
-  { len: 110, turn:    0, rise:  10, w: 4.4, sec: 'climb', note: 'STRAIGHT, CLIMBING HARD' },
-  { len:  60, turn: -150, rise:   6, w: 4.2, sec: 'climb', note: 'HAIRPIN LEFT 1',
-    mark: [{ k: 'crowd', t: 0.5, n: 13, out: 1.0 }] },
-  { len:  95, turn:   16, rise:   9, w: 4.4, sec: 'climb', note: 'RIGHT 6 UPHILL' },
-  { len:  58, turn:  145, rise:   6, w: 4.2, sec: 'climb', note: 'HAIRPIN RIGHT 1',
-    mark: [{ k: 'chevron', t: 0.25, n: 3 }] },
-  { len: 100, turn:  -20, rise:   9, w: 4.4, sec: 'climb', note: 'LEFT 5 STILL CLIMBING' },
-  { len:  62, turn: -142, rise:   5, w: 4.2, sec: 'climb', note: 'HAIRPIN LEFT 1 — NOTHING ON THE OUTSIDE',
-    mark: [{ k: 'chevron', t: 0.25, n: 3 }, { k: 'crowd', t: 0.55, side: -1, n: 9 }] },
-  { len: 120, turn:   26, rise:   8, w: 4.6, sec: 'climb', note: 'RIGHT 5 LONG' },
-  { len: 105, turn:  -18, rise:   8, w: 4.4, sec: 'climb', note: 'LEFT 5, ROAD FALLS AWAY' },
-  { len:  58, turn:  148, rise:   5, w: 4.0, sec: 'climb', note: 'HAIRPIN RIGHT 1' },
-  { len:  88, turn:  -14, rise:   7, w: 4.4, sec: 'climb', note: 'LEFT 6' },
-  { len:  56, turn:  152, rise:   4, w: 4.0, sec: 'climb', note: 'HAIRPIN RIGHT 1 — LAST ONE',
-    mark: [{ k: 'crowd', t: 0.5, n: 15, out: 0.6 }] },
-  { len: 140, turn:  -24, rise:   7, w: 4.8, sec: 'climb', note: 'LEFT 5 TO THE TOP' },
-  { len:  90, turn:    0, rise:   3, w: 5.0, sec: 'climb', note: 'STRAIGHT 90, OVER THE TOP' },
-
-  // ---- THE PLATEAU --------------------------------------------------------
-  // The reward for the climb: flat, wide, and the throttle stays where it is. The
-  // big jump is at the end of the longest straight on the stage.
-  { len: 200, turn:    0, rise:  -2, w: 5.6, sec: 'plateau', note: 'FLAT OUT 200 — THE PLATEAU' },
-  { len: 160, turn:  -22, rise:   0, w: 5.6, sec: 'plateau', note: 'LEFT 6, DONT LIFT' },
-  { len: 170, turn:   26, rise:   0, w: 5.6, sec: 'plateau', note: 'RIGHT 6' },
-  { len: 140, turn:    0, rise:   0, w: 5.6, sec: 'plateau', note: 'STRAIGHT 140' },
-  { len: 120, turn:  -40, rise:  -2, w: 5.2, sec: 'plateau', note: 'LEFT 5 LONG' },
-  { len: 150, turn:    0, rise:   0, w: 5.6, sec: 'plateau', note: 'STRAIGHT 150 — BIG ONE COMING' },
-  { len:  55, turn:    0, rise:  12, w: 5.6, sec: 'plateau', note: 'CREST',
-    mark: [{ k: 'chevron', t: 0.25, side: 0, n: 3 }] },
-  { len:  45, turn:    0, rise: -21, w: 6.0, sec: 'plateau', note: 'CAUTION — BIG JUMP, LAND STRAIGHT' },
-  { len: 110, turn:    0, rise:  -8, w: 5.6, sec: 'plateau', note: 'LANDING, DONT CUT',
-    mark: [{ k: 'crowd', t: 0.35, side: 1, n: 12, out: 2.5 }, { k: 'wreck', t: 0.75, side: -1, out: 2.6 }] },
-  { len: 130, turn:   34, rise:  -3, w: 5.2, sec: 'plateau', note: 'RIGHT 5 LONG' },
-  { len: 110, turn:  -38, rise:  -2, w: 5.0, sec: 'plateau', note: 'LEFT 5' },
-
-  // ---- THE DESCENT --------------------------------------------------------
-  // Downhill, so the car arrives at everything faster than you expect, and half of
-  // it is over a crest you can't see past. This is the section that's only possible
-  // if you actually listen to the notes.
-  { len:  95, turn:    0, rise:  -9, w: 5.0, sec: 'descent', note: 'DOWNHILL, BLIND 95',
-    mark: [{ k: 'chevron', t: 0.55, side: 0, n: 2 }] },
-  { len:  80, turn:   50, rise:  -7, w: 4.8, sec: 'descent', note: 'RIGHT 4 OVER CREST' },
-  { len:  70, turn:  -46, rise:  -6, w: 4.6, sec: 'descent', note: 'LEFT 3' },
-  { len: 110, turn:   28, rise:  -8, w: 4.8, sec: 'descent', note: 'RIGHT 5 DOWNHILL' },
-  { len:  60, turn:  -86, rise:  -4, w: 4.4, sec: 'descent', note: 'LEFT 2 — SLOW IT DOWN' },
-  { len: 130, turn:   22, rise:  -6, w: 5.0, sec: 'descent', note: 'RIGHT 6 LONG' },
-  { len:  75, turn:  -54, rise:  -3, w: 4.6, sec: 'descent', note: 'LEFT 3' },
-  { len:  90, turn:   44, rise:  -4, w: 4.8, sec: 'descent', note: 'RIGHT 4' },
-  { len:  65, turn:    0, rise:   5, w: 5.0, sec: 'descent', note: 'CREST 65 — CAUTION',
-    mark: [{ k: 'chevron', t: 0.30, side: 0, n: 2 }] },
-  { len:  70, turn:    0, rise:  -7, w: 5.0, sec: 'descent', note: 'JUMP, THEN LEFT' },
-  { len:  85, turn:  -58, rise:  -2, w: 4.6, sec: 'descent', note: 'LEFT 3 ON LANDING' },
-  { len: 120, turn:   36, rise:  -3, w: 5.0, sec: 'descent', note: 'RIGHT 5 LONG' },
-  { len: 100, turn:  -30, rise:   0, w: 5.2, sec: 'descent', note: 'LEFT 5 — LAST CORNER',
-    mark: [{ k: 'banner', t: 0.75 }] },
-  { len: 180, turn:    0, rise:   0, w: 5.6, sec: 'descent', note: 'FLAT TO FINISH',
-    mark: [{ k: 'crowd', t: 0.55, side: 0, n: 16, out: 0.4 }] },
-];
 
 const STEP = 2.0;           // centreline sample spacing, metres
 const VERGE = 13;           // how far the shaped ground extends past the road edge
@@ -219,7 +62,9 @@ export function groundProfile(y, off, floorY, span = SKIRT) {
 }
 
 export class Stage {
-  constructor() {
+  // Hand it a segment list, or a track key, or nothing for the default track.
+  constructor(track) {
+    this.segments = Array.isArray(track) ? track : trackSegments(track || DEFAULT_TRACK);
     this.samples = [];
     this._build();
     this.length = this.samples[this.samples.length - 1].dist;
@@ -233,14 +78,14 @@ export class Stage {
 
   _build() {
     let x = 0, z = 0, y = 0, head = 0, dist = 0;
-    this.samples.push({ x, z, y, w: SEGMENTS[0].w, head, dist, seg: 0 });
+    this.samples.push({ x, z, y, w: this.segments[0].w, head, dist, seg: 0 });
 
-    SEGMENTS.forEach((seg, si) => {
+    this.segments.forEach((seg, si) => {
       const n = Math.max(2, Math.round(seg.len / STEP));
       const dTurn = (seg.turn * Math.PI / 180) / n;
       const dRise = seg.rise / n;
       const dLen = seg.len / n;
-      const prevW = si === 0 ? seg.w : SEGMENTS[si - 1].w;
+      const prevW = si === 0 ? seg.w : this.segments[si - 1].w;
 
       for (let i = 1; i <= n; i++) {
         head += dTurn;
@@ -260,10 +105,10 @@ export class Stage {
   // what js/atmos.js crossfades across, so it's also what makes the world change.
   _sections() {
     const out = [];
-    SEGMENTS.forEach((seg, si) => {
+    this.segments.forEach((seg, si) => {
       const key = seg.sec || 'dawn';
       const start = this.segStartDist(si);
-      const end = si + 1 < SEGMENTS.length ? this.segStartDist(si + 1) : this.length;
+      const end = si + 1 < this.segments.length ? this.segStartDist(si + 1) : this.length;
       if (out.length && out[out.length - 1].key === key) out[out.length - 1].end = end;
       else out.push({ key, start, end });
     });
@@ -860,14 +705,15 @@ export function buildStageMesh(THREE, stage) {
       return g;
     };
 
-    SEGMENTS.forEach((seg, si) => {
+    stage.segments.forEach((seg, si) => {
       if (!seg.mark) return;
       const a = first[si], b = last[si];
       for (const mk of seg.mark) {
         const build = LANDMARK[mk.k];
         if (!build) continue;
-        // Default side is the OUTSIDE of the corner: a right-hander turns positive, so
-        // its outside is the left. A straight has no outside, so it gets the right.
+        // Default side is the OUTSIDE of the corner. Positive turn is a LEFT-hander,
+        // whose outside is the driver's right — and +lat is the driver's left, so that
+        // is side -1. A straight has no outside, so it gets the other one.
         build(frame(Math.round(a + (b - a) * (mk.t ?? 0.5))),
               { ...mk, side: mk.side ?? (seg.turn > 0 ? -1 : 1) });
       }

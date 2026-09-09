@@ -35,6 +35,7 @@
        ?lock=1        aim along the road's heading here, instead of at a point ahead —
                       which is the only way to see WHICH WAY a corner actually bends,
                       since aiming down the road hides the bend by definition
+       ?track=<key>   which road — see js/tracks.js
        ?h=<metres>    eye height, default 1.15 -->
 
 <div id="head">RALLY / props</div>
@@ -51,20 +52,23 @@
 <script type="importmap">
 { "imports": {
   "three": "./js/vendor/three.module.min.js",
-  "./js/stage.js": "./js/stage.js?v=1788915388",
-  "./js/atmos.js": "./js/atmos.js?v=1788915388"
+  "./js/stage.js": "./js/stage.js?v=1788980202",
+  "./js/atmos.js": "./js/atmos.js?v=1788980202",
+  "./js/tracks.js": "./js/tracks.js?v=1788980202"
 } }
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { Stage, buildStageMesh, SEGMENTS } from './js/stage.js';
+import { Stage, buildStageMesh } from './js/stage.js';
+import { TRACKS, DEFAULT_TRACK } from './js/tracks.js';
 import { ATMOS, atmosAt } from './js/atmos.js';
 
 const QS = new URLSearchParams(location.search);
 const EYE = parseFloat(QS.get('h') || '1.15');
 const LOCK = QS.get('lock') === '1';
 
-const stage = new Stage();
+const stage = new Stage(TRACKS[QS.get('track')] ? QS.get('track') : DEFAULT_TRACK);
+const SEGMENTS = stage.segments;
 
 // Every hand-placed landmark on the stage, in the order you'd meet them.
 const MARKS = [];

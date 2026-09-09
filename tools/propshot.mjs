@@ -27,8 +27,12 @@ const LOCK = process.env.PS_LOCK === '1' ? '&lock=1' : '';
 const PAGE = process.env.PS_PAGE || 'props.html';
 const URLS = (process.env.PS_URL || '').split('|').filter(Boolean);
 
-const { Stage, SEGMENTS } = await import('../js/stage.js');
-const stage = new Stage();
+const { Stage } = await import('../js/stage.js');
+// PS_TRACK picks the road the landmark indexes are counted along, so `mark=3` means the
+// third landmark on THAT track rather than on the default one.
+const TRACK = process.env.PS_TRACK || 'full';
+const stage = new Stage(TRACK);
+const SEGMENTS = stage.segments;
 const marks = [];
 SEGMENTS.forEach((seg, si) => {
   if (!seg.mark) return;
