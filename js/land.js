@@ -10,18 +10,26 @@
 // dust. So rolling a new material doesn't just recolour the world, it re-reads it, and
 // you can see the shape of the land in the colour before you've driven a metre of it.
 
+import { surfaceTexture } from './texture.js';
+
 const CHUNK = 64;              // cells per chunk
 
 const rgb = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255];
 const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-export function buildLandMesh(THREE, terrain, pal) {
+export function buildLandMesh(THREE, terrain, pal, opts = {}) {
   const group = new THREE.Group();
   const n = terrain.n, step = terrain.step, half = terrain.size / 2;
+  // A slight surface on top of the painting. Same map the stage uses, and for the same
+  // reason: the per-vertex grain below is one value per CELL, which at four metres a
+  // cell is a pattern of squares rather than a surface.
+  const GRAIN_M = 2.6;
+  const texAmt = opts.tex ?? 1;
+  const tex = texAmt > 0 ? surfaceTexture(THREE, { amount: texAmt, aniso: opts.aniso ?? 8 }) : null;
   const rock = rgb(pal.stone), dust = rgb(pal.road), growth = rgb(pal.tuft), deep = rgb(pal.tree);
   const span = Math.max(1, terrain.max - terrain.min);
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: tex });
 
   for (let cz = 0; cz < n - 1; cz += CHUNK) {
     for (let cx = 0; cx < n - 1; cx += CHUNK) {
@@ -29,12 +37,14 @@ export function buildLandMesh(THREE, terrain, pal) {
       const w = x1 - cx + 1, d = z1 - cz + 1;
       const pos = new Float32Array(w * d * 3);
       const col = new Float32Array(w * d * 3);
-      let k = 0;
+      const uv = new Float32Array(w * d * 2);
+      let k = 0, ku = 0;
       for (let j = cz; j <= z1; j++) {
         for (let i = cx; i <= x1; i++) {
           const x = -half + i * step, z = -half + j * step;
           const y = terrain.h[j * n + i];
           pos[k] = x; pos[k + 1] = y; pos[k + 2] = z;
+          uv[ku] = x / GRAIN_M; uv[ku + 1] = z / GRAIN_M; ku += 2;
 
           // Steepness from the grid directly — cheaper than terrain.normal() and this
           // runs half a million times.
@@ -67,6 +77,7 @@ export function buildLandMesh(THREE, terrain, pal) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
       geo.setIndex(idx);
       geo.computeVertexNormals();
       const mesh = new THREE.Mesh(geo, mat);

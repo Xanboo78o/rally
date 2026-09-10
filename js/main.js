@@ -11,7 +11,7 @@ import { Car } from './car.js';
 import { Wheel, TUNE } from './wheel.js';
 import { Controls } from './controls.js';
 import { AirFx } from './air.js';
-import { buildCockpit, VISUAL_LOCK, SEAM_Z } from './cockpit.js';
+import { buildCockpit, crumple, uncrumple, VISUAL_LOCK, SEAM_Z } from './cockpit.js';
 import { Glass } from './glass.js';
 import { Look } from './look.js';
 import { Sound } from './audio.js';
@@ -19,6 +19,7 @@ import { atmosAt, ATMOS, ATMOS_KEYS } from './atmos.js';
 import { Menu, sprintOfDay } from './menu.js';
 import { Post } from './post.js';
 import { Voice } from './voice.js';
+import { Dust } from './dust.js';
 
 const FIXED = 1 / 120;
 // Speed fraction at which each gear runs out. rpm sawtooths inside each one, so the
@@ -95,7 +96,13 @@ scene.add(sun);
 const TRACK = TRACKS[QS.get('track')] ? QS.get('track') : DEFAULT_TRACK;
 const stage = new Stage(TRACK);
 const SEGMENTS = stage.segments;
-scene.add(buildStageMesh(THREE, stage));
+// ?tex=0 turns the surface texture off, ?tex=2 doubles it — the look is meant to be
+// SLIGHT, and the only way to judge slight is to be able to switch it off.
+const TEX = QS.has('tex') ? Math.max(0, parseFloat(QS.get('tex')) || 0) : 1;
+scene.add(buildStageMesh(THREE, stage, { tex: TEX }));
+
+// What the wheels throw up. Its colour is set per place from the atmos, below.
+const dust = new Dust(THREE, scene);
 
 // ---------------------------------------------------------------------------
 // WHERE YOU ARE. One blended atmos entry per frame drives the sky, the fog, both
@@ -123,10 +130,12 @@ function applyAtmos(A) {
   hemi.color.setHex(A.hemi.sky);
   hemi.groundColor.setHex(A.hemi.ground);
   hemi.intensity = A.hemi.int;
+  // Chalk does not throw basalt. The dust is the colour of the ruts you're driving in.
+  dust.setColor(A.ground.rut);
   post.apply(A.look);
 }
 
-const { group: cockpit, mat: hoodMat } = buildCockpit(THREE);
+const { group: cockpit, hood, lip, mat: hoodMat } = buildCockpit(THREE);
 camera.add(cockpit);
 
 // Interior is a DOM overlay now; these are the bits the sim drives.
@@ -162,6 +171,18 @@ let noteSeg = -1, noteUntil = 0;
 let dsFlare = 0;           // extra revs still hanging on after a downshift
 let bestAir = parseFloat(localStorage.getItem('rally.air') || '0') || 0;
 let camShake = 0;
+
+// Something off the road just hit the windscreen. The glass draws the mark; the kick and
+// the noise belong out here, because the glass has never heard of a camera.
+glass.onHit = (hard, stick) => {
+  camShake = Math.min(1.4, camShake + (stick ? 0.20 : 0.34) * (0.4 + hard));
+  sound.thud(Math.min(1, (stick ? 0.28 : 0.5) * (0.4 + hard)));
+};
+let shownDamage = 0;   // what the bonnet is currently bent to
+// For the roll: the car's tumble quaternion, and the 180-degree flip that turns a
+// body orientation into a camera one.
+const TQ = new THREE.Quaternion();
+const CAM_FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 let hoodDirt = 0;
 let fading = false;
 let prevBumpY = 0;
@@ -262,8 +283,12 @@ function resetRun() {
   car.airborne = false; car.airTime = 0; car.pitch = 0; car.roll = 0;
   car.rolled = false; car.settled = false; car.tumble = 0; car.tumbleRate = 0;
   car.impact = 0; car.landingHit = 0;
+  // A new run is a new car.
+  car.damage = 0; car.damageBias = 0;
+  shownDamage = 0; uncrumple(hood, lip);
   wheel.pos = 0; wheel.target = 0; wheel.release();
   glass.clear();
+  dust.clear();
   hoodDirt = 0;
   hoodMat.color.setRGB(1, 1, 1);
   timer = 0; timing = false; finished = false;
@@ -383,6 +408,27 @@ function frame(now) {
 
 function step(dt) {
   const ground = stage.sample(car.x, car.z);
+  // THE SURFACE THE CAR IS ACTUALLY ON.
+  //
+  // `ground.slope` is the CENTRELINE's gradient — the road's, along the road. That is
+  // fine while you're on the road and completely wrong the moment you aren't, which is
+  // why driving onto a bank in the pines lifted the car straight up while it stayed
+  // dead level: the car was following a hill the road didn't know about.
+  //
+  // So probe the real thing. Two extra lookups either side of the car give the gradient
+  // ALONG the way it's pointing and ACROSS it, and those three numbers are the pitch,
+  // the gravity fighting you up a slope, the camber you feel through the seat, and
+  // whether the thing in front of you is a ramp or a wall.
+  {
+    const L = 3.4;
+    const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
+    const rx = -Math.cos(car.yaw), rz = Math.sin(car.yaw);   // the driver's right
+    const ahead = stage.sample(car.x + fx * L, car.z + fz * L).height;
+    const right = stage.sample(car.x + rx * L, car.z + rz * L).height;
+    ground.gradAlong = (ahead - ground.height) / L;
+    ground.gradAcross = (right - ground.height) / L;
+    ground.wall = ground.gradAlong;
+  }
   if (AUTO) autopilot(ground);
   wheel.update(dt, car.speedFactor);
   const wasAir = car.airborne;
@@ -412,8 +458,26 @@ function step(dt) {
   // --- on your roof: the tumble plays out, then it fades and you're back at the
   //     menu. No banner over the top of it.
   const hit = car.takeImpact();
-  if (hit > 0) sound.crunch(hit);
-  if (car.rolled) { timing = false; if (car.settled && !fading) startFade(); }
+  if (hit > 0) {
+    sound.crunch(hit);
+    // A shunt has to move the camera or it's a sound effect with a dent behind it.
+    camShake = Math.max(camShake, 0.35 + hit * 1.6);
+  }
+  // The bonnet only gets rebuilt when the damage actually changed — it recomputes
+  // normals, and there is no reason to do that on a frame where nothing hit anything.
+  if (car.damage !== shownDamage) {
+    shownDamage = car.damage;
+    crumple(hood, lip, car.damage, car.damageBias);
+  }
+  // The clock does NOT stop because you crashed — a rally clock never does, and if you
+  // land on your wheels and drive out of it the run is still live.
+  if (car.rolled && car.settled && !fading) startFade();
+  if (car.recovered) {
+    car.recovered = false;
+    sound.thud(1);
+    camShake = Math.max(camShake, 1.4);
+    flash($('airFlash'));
+  }
 
   // --- timing --------------------------------------------------------------
   if (!timing && p > run.from + 12) timing = true;
@@ -519,6 +583,25 @@ function render(dtReal) {
   // Look slightly into the direction of travel while sliding — drivers look through
   // the corner rather than where the nose happens to point.
   camera.rotation.set(0, 0, 0);
+
+  if (car.rolled) {
+    // YOU ARE LITERALLY ROLLING. The tumble is a real rigid body with a real
+    // orientation quaternion, and until now the camera ignored it completely and stayed
+    // politely level while the world went round outside — which read as a bug, because
+    // it is one. Your head is bolted to the car.
+    //
+    // car.q is body->world INCLUDING heading (it's seeded from the yaw when you go
+    // over), so the camera orientation is just that, times the same 180-degree flip the
+    // level path does: a three.js camera looks down its local -Z and the car's forward
+    // is body +Z.
+    TQ.set(car.q.x, car.q.y, car.q.z, car.q.w);
+    camera.quaternion.copy(TQ).multiply(CAM_FLIP);
+    camera.position.copy(eye);
+    // and the picture comes apart a bit while it happens
+    camera.rotateX((Math.random() - 0.5) * 0.05);
+    camera.rotateZ((Math.random() - 0.5) * 0.05);
+  } else {
+
   // +PI because a three.js camera looks down its local -Z, while the car's heading
   // is (sin yaw, cos yaw). Without it you drive the whole stage in reverse.
   camera.rotateY(Math.PI + car.yaw - car.slip * 0.28);
@@ -545,6 +628,7 @@ function render(dtReal) {
   const pxToWorld = (2 * SEAM_Z * Math.tan(camera.fov * 0.5 * Math.PI / 180)) / innerHeight;
   cockpit.position.y = -cabinBump * pxToWorld;
   camera.rotateZ(car.bodyRoll + rumbleRoll);
+  }
 
   // The rim visibly lags your thumb, and unwinds on its own when you let go.
   rimEl.setAttribute('transform', 'rotate(' + (wheel.pos * VISUAL_LOCK * 57.2958).toFixed(2) + ')');
@@ -556,7 +640,37 @@ function render(dtReal) {
     hoodMat.color.setRGB(t, t * 0.985, t * 0.95);
   }
 
-  glass.update(dtReal, car.speedFactor, ground.onRoad);
+  // ---- dust off the wheels ------------------------------------------------
+  // Two things make it: sliding, and being off the road. Sliding is the interesting one
+  // — the rears break traction and the plume comes out past the side glass, which in
+  // first person is the only place you can see your own car working.
+  if (!car.airborne && car.speedFactor > 0.05) {
+    const slide = Math.min(1, Math.abs(car.slip) / 0.42);
+    const off = ground.onRoad ? 0 : 1;
+    const heat = Math.min(1, slide * 0.9 + off * 0.55) * car.speedFactor;
+    // ~55 puffs a second flat out and fully sideways, none at all when tidy on tarmac.
+    const want = (slide * 34 + off * 26) * car.speedFactor * dtReal;
+    let n = Math.floor(want) + (Math.random() < want % 1 ? 1 : 0);
+    if (n > 0) {
+      const sy = Math.sin(car.yaw), cy = Math.cos(car.yaw);
+      // The plume leaves along the car's SIDEWAYS velocity, so it trails the direction
+      // the car is actually sliding rather than the way the nose happens to point.
+      const dx = -(car.vr * cy) * 0.06 - sy * 0.35, dz = (car.vr * sy) * 0.06 - cy * 0.35;
+      const WHEELS = [[-0.78, -1.32], [0.78, -1.32], [-0.74, 1.28], [0.74, 1.28]];
+      for (let k = 0; k < n; k++) {
+        // rears throw in a slide, all four throw off-road
+        const w = WHEELS[off ? (k & 3) : 2 + (k & 1)];
+        const wx = car.x + w[0] * cy + w[1] * sy;
+        const wz = car.z - w[0] * sy + w[1] * cy;
+        dust.emit(wx, ground.height ?? car.y, wz, 1, heat, dx, dz,
+          { size: 0.5 + off * 0.35, ttl: 0.9 + off * 0.5, grow: 2.0 + off * 1.2 });
+      }
+    }
+  }
+  dust.update(dtReal, camera, innerHeight);
+
+  glass.update(dtReal, car.speedFactor, ground.onRoad,
+    Math.min(1, Math.abs(car.slip) / 0.42));
   glass.speed = car.speedFactor;
   glass.draw();
 
@@ -712,6 +826,15 @@ if (AUTO) {
     run = { mode: 'sprint', from: sec.start, to: sec.end, key: sec.key,
             title: ATMOS[sec.key]?.name || sec.key };
     resetRun();
+  }
+  // ?damage=0..1 bends the bonnet without having to actually hit anything, so the
+  // crumple can be looked at headlessly — a screenshot can't drive into a wall.
+  const dmg = parseFloat(QS.get('damage') || '0');
+  if (dmg > 0) {
+    car.damage = Math.min(1, dmg);
+    car.damageBias = parseFloat(QS.get('bias') || '-0.6');
+    shownDamage = car.damage;
+    crumple(hood, lip, car.damage, car.damageBias);
   }
   const at = parseFloat(QS.get('at') || '0');
   for (let t = 0; t < at; t += FIXED) step(FIXED);

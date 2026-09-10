@@ -40,8 +40,19 @@ export const CAR = {
   leanPerG: 0.010,      // how far the body leans per m/s^2 of cornering load. 0.038 gave
                         // 19 degrees at the limit, which banks like an aircraft — a real
                         // car rolls 3-7 degrees.
-  rollTrip: 8.5,        // sideways m/s that tips the car when a wheel digs in off-road
-  rollLanding: 0.90,    // landing severity that puts it on its roof
+  // Sideways m/s that tips the car when a wheel digs in off-road. Was 8.5, which is
+  // nineteen mph of lateral — i.e. any half-decent drift that touched the verge put you
+  // on your roof and ended the run. Adam: "the second i go off ive been instantly
+  // getting straight to menu, even though i can 100% recover." At 15 it takes a genuine
+  // twenty-degree slide at ninety, and it has to be SUSTAINED: a car trips because a
+  // wheel is buried and stays buried, not because of one spike in one tick.
+  rollTrip: 15.0,
+  rollTripHold: 0.18,   // seconds of that before it goes over
+  rollLanding: 0.95,    // landing severity that puts it on its roof
+  // How upright you have to end up to be allowed to drive out of it. DESIGN.md always
+  // wanted this: "once in a blue moon someone tumbles down the hill, lands on all four
+  // wheels and drives out of it." It was never wired up — every tumble was terminal.
+  rollRecover: 0.55,    // body up-vector Y at rest, 1 = perfectly upright
   // Rigid-body wreck. Half-extents of the shell, the moment of inertia per unit mass,
   // and how bouncy / grippy the panels are against the ground.
   boxW: 0.85, boxH: 0.62, boxL: 1.95,
@@ -50,7 +61,30 @@ export const CAR = {
   bodyFriction: 0.95,
 
   gravity: 22.5,        // exaggerated, so jumps come down decisively
+  // How much of gravity fights you along a slope. Adam, on driving onto a bank in the
+  // pines: "it should take lots of power to go up a hill that steep and therefore
+  // unlikely." Nothing used to resist a climb at all — the car followed the ground up
+  // whatever it met, for free, which is how you float up the side of a valley at ninety.
+  slopeGrav: 1.0,
+  camberFeel: 0.55,     // how much of a cross-slope you feel as body roll
   airYaw: 1.35,         // how much the wheel can rotate you in mid-air
+
+  // Hitting something solid. There are no walls as objects in this game — what there is,
+  // since bank went into stage.js, is ground that RISES beside the road: a cut face, the
+  // rock in the gorge, the side of a cave. main.js probes the ground a few metres ahead
+  // ALONG THE CAR'S HEADING and hands the gradient over as `ground.wall`, which means
+  // the angle sorts itself out for free: run parallel to a face and the ground ahead of
+  // you is level, so there's no wall; turn into it and there is.
+  // Measured, not guessed: driving straight down the whole stage the probe never reads
+  // above 0.22, a 25-degree clip of a 6m bank reads 0.34, 45 degrees reads 0.59 and
+  // square-on reads 0.82. So the line between "scrubbed a verge" and "hit a wall" sits
+  // at 0.45, which leaves twice the margin over anything the road itself does.
+  wallSlope: 0.45,
+  wallRange: 0.40,      // ...and 0.45 -> 0.85 is glancing -> square-on
+  wallScrub: 0.78,      // fraction of speed a full hit takes
+  wallDamage: 1.0,      // a square hit at ninety folds the bonnet in one go
+  wallSpin: 2.2,        // and throws the car round
+  wallCool: 0.40,       // seconds before you can be hit again — one bang, then scraping
 };
 
 export class Car {
@@ -69,6 +103,9 @@ export class Car {
     this._dsCool = 0;
     this.rolled = false;
     this.settled = false;    // finished tumbling and come to rest
+    this.landedUpright = false;
+    this.recovered = false;
+    this._dig = 0;
     // Orientation as a quaternion so it can tumble on any axis, not just roll.
     this.q = { x: 0, y: 0, z: 0, w: 1 };
     this.wx = 0; this.wy = 0; this.wz = 0;   // angular velocity, world space, rad/s
@@ -76,6 +113,11 @@ export class Car {
     this._rest = 0;
     this._wasContact = false;
     this.impact = 0;         // set on each ground hit, consumed for a crunch
+    // Damage is for the whole run and never heals. 0 is a clean car, 1 is a bonnet
+    // folded back to the scuttle. `damageBias` is which corner took it: -1 all left.
+    this.damage = 0;
+    this.damageBias = 0;
+    this._wallCool = 0;
     this.accelLong = 0;
     this.pitch = 0;        // visual only, from suspension + air
     this.roll = 0;
@@ -216,9 +258,34 @@ export class Car {
 
     this.rollTime = (this.rollTime || 0) + dt;
     if (!this.settled) {
-      const still = hit && spin < 0.95 && Math.hypot(this.vf, this.vr) < 1.4 && Math.abs(this.vy) < 1.4;
+      // Looser than it was, and capped far lower. Five seconds of tumble plus a car
+      // that never quite met the old thresholds is where "and for 10 seconds after it
+      // ends THEN fade to black" came from.
+      const still = hit && spin < 1.5 && Math.hypot(this.vf, this.vr) < 2.4 && Math.abs(this.vy) < 2.0;
       this._rest = still ? (this._rest || 0) + dt : 0;
-      if (this._rest > 0.25 || this.rollTime > 5.0) this.settled = true;
+      if (this._rest > 0.18 || this.rollTime > 2.8) {
+        this.settled = true;
+        // Which way up did it stop? Rotate the body's own up-vector into the world.
+        const up = this.rotate(0, 1, 0);
+        this.landedUpright = up.y > CAR.rollRecover;
+        if (this.landedUpright) {
+          // On your wheels. Straighten it out, keep whatever you were carrying, and go.
+          // The whole roll becomes a moment instead of the end of the run.
+          this.rolled = false;
+          this.settled = false;
+          this.rollTime = 0;
+          this._rest = 0;
+          this._dig = 0;
+          this.q = { x: 0, y: 0, z: 0, w: 1 };
+          this.wx = this.wy = this.wz = 0;
+          this.yaw = Math.atan2(this.vf * Math.sin(this.yaw) + this.vr * Math.cos(this.yaw),
+                                this.vf * Math.cos(this.yaw) - this.vr * Math.sin(this.yaw));
+          this.vf = Math.min(CAR.topSpeed, Math.hypot(this.vf, this.vr) * 0.55);
+          this.vr = 0;
+          this.yawRate = 0;
+          this.recovered = true;      // consumed by main.js for a noise and a shake
+        }
+      }
     }
   }
 
@@ -241,13 +308,54 @@ export class Car {
     if (this._dsCool > 0) this._dsCool -= dt;
     const vfBefore = this.vf;
 
+    // ---- driving into something solid ----------------------------------------
+    if (this._wallCool > 0) this._wallCool -= dt;
+    const wall = ground.wall || 0;
+    if (!this.airborne && wall > CAR.wallSlope && this.vf > 5) {
+      if (this._wallCool > 0) {
+        // Already had the bang; now you're dragging down the face of it.
+        this.vf *= 1 - 1.7 * dt;
+      } else {
+        // How fast you were going into it, and how square-on you were. A glance at
+        // thirty should mark the car and only a proper head-on at ninety should fold it.
+        const closing = Math.min(1, this.vf / CAR.topSpeed);
+        const square = Math.min(1, (wall - CAR.wallSlope) / CAR.wallRange);
+        const hit = Math.min(1, closing * (0.15 + 0.85 * square) * 1.1);
+
+        this.vf *= 1 - CAR.wallScrub * hit;
+        this.impact = Math.max(this.impact, hit);
+        // Which corner took it. Sliding sideways into a face hits that side; otherwise
+        // it's whichever way you were steering when you arrived.
+        const bias = Math.abs(this.vr) > 0.6 ? Math.sign(this.vr) : Math.sign(wheelPos || 0.001);
+        // Never heals, and a car that's already bent keeps most of the bend it had.
+        this.damageBias = this.damage > 0.02 ? this.damageBias * 0.7 + bias * 0.3 : bias;
+        this.damage = Math.min(1, this.damage + hit * CAR.wallDamage);
+        // A wall doesn't stop you square, it throws you off it.
+        this.yawRate -= bias * hit * CAR.wallSpin;
+        this.vr -= bias * hit * 4;
+        this._wallCool = CAR.wallCool;
+      }
+    }
+
     // ---- vertical: follow the road, launch off crests, land ------------------
     const wasAir = this.airborne;
     this.vy -= CAR.gravity * dt;
     this.y += this.vy * dt;
 
+    // The gradient of the surface the car is ACTUALLY on, in the direction it's
+    // actually pointing. Falls back to the centreline's for anything that hasn't been
+    // given a probe (the harnesses, mostly).
+    const grade = ground.gradAlong !== undefined ? ground.gradAlong : (ground.slope || 0);
+
+    // Gravity along that slope. This is the whole of "real physics" for a hill: uphill
+    // costs you, downhill pays you, and a slope steep enough stops you dead however
+    // hard you're trying. sin(atan(g)) rather than g, or a wall reads as infinite.
+    if (!this.airborne) {
+      this.vf -= CAR.gravity * CAR.slopeGrav * (grade / Math.sqrt(1 + grade * grade)) * dt;
+    }
+
     // The vertical speed the road is asking the car to travel at right now.
-    const followVy = this.vf * (ground.slope || 0);
+    const followVy = this.vf * grade;
 
     if (!wasAir) {
       // Planted. The car can only be pulled down as fast as gravity manages, so if
@@ -349,7 +457,9 @@ export class Car {
     // ---- tipping over --------------------------------------------------------
     // You can't roll a car with steering alone — grip runs out first. What actually
     // rolls one is TRIPPING: sliding sideways and having a wheel dig into something.
-    const trippedOffRoad = !ground.onRoad && Math.abs(this.vr) > CAR.rollTrip && this.speed > 11;
+    const digging = !ground.onRoad && Math.abs(this.vr) > CAR.rollTrip && this.speed > 14;
+    this._dig = digging ? (this._dig || 0) + dt : 0;
+    const trippedOffRoad = this._dig > CAR.rollTripHold;
     if (trippedOffRoad || this.landingHit > CAR.rollLanding) {
       this.rolled = true;
       // Hand the rigid body its starting state: current heading as the orientation,
@@ -370,7 +480,12 @@ export class Car {
     // Lean is driven by cornering load, so hard corners genuinely feel like they're
     // about to put you over even though grip caps the real thing.
     const latAccel = this.vf * this.yawRate;
-    const targetRoll = Math.max(-0.5, Math.min(0.5, latAccel * CAR.leanPerG)) - this.vr * 0.004;
+    // Cornering lean, plus the tilt of the ground itself. A road banked into the corner
+    // therefore CANCELS some of the lean, which is exactly what banking is for and what
+    // makes it worth putting in the road.
+    const cross = this.airborne ? 0 : (ground.gradAcross || 0);
+    const targetRoll = Math.max(-0.6, Math.min(0.6,
+      latAccel * CAR.leanPerG - Math.atan(cross) * CAR.camberFeel)) - this.vr * 0.004;
     this.roll += (targetRoll - this.roll) * Math.min(1, 9 * dt);
     // PITCH = the angle of the direction you are actually travelling. While planted vy
     // is the road's gradient, so the car tilts with the hill; in the air it's the flight
@@ -380,7 +495,11 @@ export class Car {
     // This used to be hardcoded to 0 on the ground, which pinned the horizon to the
     // exact centre of the screen for the whole stage — a gyro-stabilised drone holding
     // altitude over terrain. That, not the lean, was why it felt like a plane.
-    const travelPitch = Math.atan2(this.vy, Math.max(5, Math.abs(this.vf)));
+    // On the ground this is the real surface gradient, so the nose genuinely points up
+    // the bank you drove onto instead of staying level while the car climbs it.
+    const travelPitch = this.airborne
+      ? Math.atan2(this.vy, Math.max(5, Math.abs(this.vf)))
+      : Math.atan(ground.gradAlong !== undefined ? ground.gradAlong : (ground.slope || 0));
     // Weight transfer on top: it squats under power and dives under braking.
     // Weight transfer is a SUSPENSION response, so it has to lag and stay small. Reading
     // raw per-tick acceleration made a downshift (an instant speed change) spike it and

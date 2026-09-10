@@ -60,6 +60,30 @@ const SKIRT_KNOTS = [[0, 0], [0.30, 0.25], [0.65, 0.60], [1, 1]];
 // Raised ground is also the honest fix for "i cannot see the end of the baseplate":
 // a hillside that keeps climbing has no horizon behind it to give the game away.
 const BANK_DEFAULT = [-EDGE_DROP, -EDGE_DROP];
+
+// ---------------------------------------------------------------------------
+// CAMBER — the road surface itself tilting into the corner.
+//
+// Derived from the corner rather than authored, because a road banks into its bends by
+// itself and having to write a number on all 105 of them is how the numbers end up
+// wrong. A segment can still say `cam:` in degrees to override it, and a NEGATIVE one
+// is off-camber, which is the most frightening thing in rally and the reason the
+// override exists at all.
+//
+// Positive is banked for a LEFT-hander: the driver's left edge drops, the right lifts,
+// and you lean into it. +lat is the driver's left, and turn > 0 is a left turn.
+const CAM_K = 6.0;          // degrees of bank per degree-per-metre of corner
+const CAM_MAX = 7.0;        // ...and the most any corner gets
+const camFor = seg => (seg.cam !== undefined ? seg.cam
+  : Math.max(-CAM_MAX, Math.min(CAM_MAX, (seg.turn / Math.max(1, seg.len)) * CAM_K)))
+  * Math.PI / 180;
+
+// Height of the road surface at a lateral offset, given the camber. Past the edge it
+// stops tilting and hands the EDGE's height to the verge, so the two always meet.
+export function camberAt(y, lateral, w, camT) {
+  if (!camT) return y;
+  return y - Math.sign(lateral) * Math.min(Math.abs(lateral), w) * camT;
+}
 const RISE_END = VERGE;     // metres out at which a cut has reached its full height
 const RIDGE_MULT = 2.6;     // ...and how much taller again it is by the end of the skirt
 
@@ -117,7 +141,8 @@ export class Stage {
   _build() {
     let x = 0, z = 0, y = 0, head = 0, dist = 0;
     const b0 = this.segments[0].bank || BANK_DEFAULT;
-    this.samples.push({ x, z, y, w: this.segments[0].w, head, dist, seg: 0, bl: b0[0], br: b0[1] });
+    this.samples.push({ x, z, y, w: this.segments[0].w, head, dist, seg: 0,
+                        bl: b0[0], br: b0[1], camT: Math.tan(camFor(this.segments[0])) });
 
     this.segments.forEach((seg, si) => {
       const n = Math.max(2, Math.round(seg.len / STEP));
@@ -129,6 +154,11 @@ export class Stage {
       // that appears between one 2m sample and the next is a wall, not a bank.
       const bank = seg.bank || BANK_DEFAULT;
       const prevBank = (si === 0 ? seg.bank : this.segments[si - 1].bank) || BANK_DEFAULT;
+      // Camber eases across the seam too, and it has to ease over the WHOLE segment
+      // rather than the first half like width does — a road that snaps from banked one
+      // way to banked the other in twenty metres is a ditch, not a chicane.
+      const cam = Math.tan(camFor(seg));
+      const prevCam = Math.tan(camFor(si === 0 ? seg : this.segments[si - 1]));
 
       for (let i = 1; i <= n; i++) {
         head += dTurn;
@@ -140,9 +170,11 @@ export class Stage {
         const t = i / n;
         const k = Math.min(1, t * 2);
         const w = prevW + (seg.w - prevW) * k;
+        const ct = t * t * (3 - 2 * t);
         this.samples.push({ x, z, y, w, head, dist, seg: si,
                             bl: prevBank[0] + (bank[0] - prevBank[0]) * k,
-                            br: prevBank[1] + (bank[1] - prevBank[1]) * k });
+                            br: prevBank[1] + (bank[1] - prevBank[1]) * k,
+                            camT: prevCam + (cam - prevCam) * ct });
       }
     });
   }
@@ -255,6 +287,7 @@ export class Stage {
     const off = Math.abs(lateral) - w;
     // +lat is the driver's LEFT, so which bank you're standing on depends on the sign.
     const lift = lateral >= 0 ? s.bl + (n.bl - s.bl) * t : s.br + (n.br - s.br) * t;
+    const camT = s.camT + (n.camT - s.camT) * t;
 
     // Gradient of the road in the direction of travel. It MUST be the gradient of
     // the same pair of samples the height was interpolated across — take it from the
@@ -264,7 +297,7 @@ export class Stage {
 
     // The same curve the mesh is built from, so what you can see is what you land on —
     // including off the side of the mountain, where the ground now keeps going down.
-    const height = groundProfile(baseY, off, this.floorY, span, lift);
+    const height = groundProfile(camberAt(baseY, lateral, w, camT), off, this.floorY, span, lift);
     return {
       height,
       slope,
@@ -298,6 +331,7 @@ export class Stage {
 // ---------------------------------------------------------------------------
 
 import { atmosAt } from './atmos.js';
+import { surfaceTexture, propTexture } from './texture.js';
 
 const CHUNK = 120;          // samples per chunk — 240m
 
@@ -440,8 +474,17 @@ const LANDMARK = {
   },
 };
 
-export function buildStageMesh(THREE, stage) {
+export function buildStageMesh(THREE, stage, opts = {}) {
   const group = new THREE.Group();
+
+  // A SLIGHT texture on everything. The world was flat colour, and the only detail on
+  // the road was the ruts and scars — which are literally rectangles, and read as a
+  // pixely pattern rather than as ground. These maps are near-white multipliers: they
+  // never change a colour, they only stop the light landing evenly. See texture.js.
+  const TEX = opts.tex ?? 1;                   // 0 turns it all off
+  const GRAIN_M = 2.6;                         // metres per tile on the ground
+  const surf = TEX > 0 ? surfaceTexture(THREE, { amount: TEX, aniso: opts.aniso ?? 4 }) : null;
+  const prop = TEX > 0 ? propTexture(THREE, { amount: TEX * 0.85, aniso: 4 }) : null;
   const S = stage.samples;
 
   // Per-sample palette, blended exactly the way the fog is, so the ground and the air
@@ -455,9 +498,20 @@ export function buildStageMesh(THREE, stage) {
   let cx = 0, cz = 0;
   for (const s of S) { cx += s.x; cz += s.z; }
   const FLOOR = stage.floorY;
+  // The valley floor is 12km across. Tiling it at the road's 2.6m means ~4600 repeats,
+  // and that many texels crammed into a few pixels of horizon is all minification —
+  // expensive everywhere and murder on a software rasteriser. It's also pointless: the
+  // floor is far away and half of it is behind fog, so it gets a big lazy tile and no
+  // anisotropy at all.
+  const floorTex = surf ? surf.clone() : null;
+  if (floorTex) {
+    floorTex.needsUpdate = true;
+    floorTex.repeat.set(12000 / 26, 12000 / 26);
+    floorTex.anisotropy = 1;
+  }
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(12000, 12000),
-    new THREE.MeshLambertMaterial({ color: 0x55603f })
+    new THREE.MeshLambertMaterial({ color: 0x55603f, map: floorTex })
   );
   ground.rotation.x = -Math.PI / 2;
   // 5cm, not 40cm: the skirt runs down to exactly FLOOR, so any bigger gap is a step
@@ -470,13 +524,14 @@ export function buildStageMesh(THREE, stage) {
   // which three multiplies in on its own. Setting vertexColors on them makes the shader
   // read a `color` attribute that a BoxGeometry has never had — WebGL hands it (0,0,0)
   // and every tree, wall and stone renders pure black.
-  const roadMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-  const propMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const roadMat = new THREE.MeshLambertMaterial({ vertexColors: true, map: surf });
+  const propMat = new THREE.MeshLambertMaterial({ color: 0xffffff, map: prop });
   // Ruts and scars lie a couple of centimetres over the road, which is far below the
   // depth buffer's resolution a few hundred metres out. polygonOffset is the fix for
   // coplanar decals — without it they shimmer in and out at distance.
   const decalMat = new THREE.MeshLambertMaterial({
-    vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+    vertexColors: true, map: surf,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
   });
 
   // Geometry shared by every chunk's instanced props.
@@ -498,12 +553,16 @@ export function buildStageMesh(THREE, stage) {
     const chunk = new THREE.Group();
 
     // --- ribbons: road, verge, ruts, scars ---------------------------------
-    const strip = () => ({ pos: [], col: [], idx: [] });
+    const strip = () => ({ pos: [], col: [], uv: [], idx: [] });
     const land = strip(), rut = strip(), scar = strip();
 
+    // World-planar UV. The ribbon is a ground surface, so mapping straight off world x/z
+    // keeps the texel size constant everywhere — a UV that ran along the road instead
+    // would stretch the texture out across the wide skirt and squash it in the hairpins.
     const push = (t, x, y, z, rgb) => {
       t.pos.push(x, y, z);
       t.col.push(rgb[0], rgb[1], rgb[2]);
+      t.uv.push(x / GRAIN_M, z / GRAIN_M);
     };
     const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -541,7 +600,8 @@ export function buildStageMesh(THREE, stage) {
         [V + K * 0.30, L.near], [V + K * 0.65, L.far], [V + K, L.outer],
       ];
       for (const [lat, rgb] of cross) {
-        const y = groundProfile(s.y, Math.abs(lat) - w, FLOOR, K, lat >= 0 ? s.bl : s.br);
+        const y = groundProfile(camberAt(s.y, lat, w, s.camT), Math.abs(lat) - w,
+                                FLOOR, K, lat >= 0 ? s.bl : s.br);
         push(land, s.x + rx * lat, y, s.z + rz * lat, rgb);
       }
 
@@ -559,9 +619,10 @@ export function buildStageMesh(THREE, stage) {
     // Wheel ruts. DASHED, not continuous — a solid line running the way you're
     // travelling barely appears to move, which is the worst motion cue there is.
     const RUT_OFF = 0.78, RUT_W = 0.19;
+    const MARK = 0.42;             // how far a mark is allowed to be from road colour
     let rq = 0;
     for (let i = c0; i + 3 <= c1; i += 5) {              // 6m dash, 4m gap
-      const cRut = hex(pal[i].rut);
+      const cRut = mix(hex(pal[i].road), hex(pal[i].rut), MARK);
       for (const side of [-1, 1]) {
         for (let k = 0; k < 3; k++) {
           const s = S[i + k];
@@ -583,7 +644,7 @@ export function buildStageMesh(THREE, stage) {
     for (let i = c0 + 1; i + 2 <= c1; i += 3) {
       const j = (i * 41) % 23;
       const s0 = S[i], s1 = S[i + 1 + (j % 2)];
-      const cS = hex(pal[i].scar);
+      const cS = mix(hex(pal[i].road), hex(pal[i].scar), MARK * 0.8);
       const r0x = Math.cos(s0.head), r0z = -Math.sin(s0.head);
       const r1x = Math.cos(s1.head), r1z = -Math.sin(s1.head);
       const off = ((j % 11) - 5) * 0.42;                  // wander across the road
@@ -602,6 +663,7 @@ export function buildStageMesh(THREE, stage) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(t.pos, 3));
       g.setAttribute('color', new THREE.Float32BufferAttribute(t.col, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(t.uv, 2));
       g.setIndex(t.idx);
       g.computeVertexNormals();
       chunk.add(new THREE.Mesh(g, mat));
@@ -620,7 +682,8 @@ export function buildStageMesh(THREE, stage) {
       // falling away, so posts hovered 19cm up, stones 55cm, trees 60cm and the ruins
       // monoliths a clear 1.1m — while the near pines were buried to the branches.
       // `d` is distance from the centreline; side decides which bank it stands on.
-      const gy = (d, side = 1) => groundProfile(s.y, Math.abs(d) - s.w, FLOOR, s.span, side >= 0 ? s.bl : s.br);
+      const gy = (d, side = 1) => groundProfile(camberAt(s.y, d * side, s.w, s.camT),
+                                                Math.abs(d) - s.w, FLOOR, s.span, side >= 0 ? s.bl : s.br);
 
       // edge posts, so you can read where the road goes in first person
       if (i % 4 === 0) {
@@ -803,7 +866,8 @@ export function buildStageMesh(THREE, stage) {
         w: s.w, p: pal[i],
         // How far the ground has fallen from road level this far out. Everything stands
         // on this, or it hovers over the verge the way every prop here used to.
-        ground: lat => groundProfile(s.y, Math.abs(lat) - s.w, FLOOR, s.span, lat >= 0 ? s.bl : s.br) - s.y,
+        ground: lat => groundProfile(camberAt(s.y, lat, s.w, s.camT),
+                                     Math.abs(lat) - s.w, FLOOR, s.span, lat >= 0 ? s.bl : s.br) - s.y,
         at(d) {
           let j = i, target = s.dist + d;
           while (j > 0 && S[j].dist > target) j--;
@@ -867,9 +931,9 @@ export function buildStageMesh(THREE, stage) {
     const s0 = S[0];
     const rx = Math.cos(s0.head), rz = -Math.sin(s0.head);   // across the road
     const fx = Math.sin(s0.head), fz = Math.cos(s0.head);    // down it
-    const red = new THREE.MeshLambertMaterial({ color: 0xd8433a });
-    const pale = new THREE.MeshLambertMaterial({ color: 0xe8e2d4 });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x2b2f36 });
+    const red = new THREE.MeshLambertMaterial({ color: 0xd8433a, map: prop });
+    const pale = new THREE.MeshLambertMaterial({ color: 0xe8e2d4, map: prop });
+    const dark = new THREE.MeshLambertMaterial({ color: 0x2b2f36, map: prop });
     const at = (mesh, out, along, up) => {
       mesh.position.set(s0.x + rx * out + fx * along, s0.y + up, s0.z + rz * out + fz * along);
       mesh.rotation.y = -s0.head;
@@ -893,7 +957,7 @@ export function buildStageMesh(THREE, stage) {
   const last = S[S.length - 1];
   const gate = new THREE.Mesh(
     new THREE.BoxGeometry(last.w * 2.4, 0.5, 0.5),
-    new THREE.MeshLambertMaterial({ color: 0xd8433a })
+    new THREE.MeshLambertMaterial({ color: 0xd8433a, map: prop })
   );
   gate.position.set(last.x, last.y + 3.2, last.z);
   gate.rotation.y = -last.head;

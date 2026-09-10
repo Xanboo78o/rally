@@ -107,5 +107,69 @@ export function buildCockpit(THREE) {
   lip.position.set(0, FAR_Y - 0.04, FAR_Z);
   g.add(lip);
 
-  return { group: g, hood, mat };
+  return { group: g, hood, lip, mat };
 }
+
+// ---------------------------------------------------------------------------
+// CRUMPLE.
+//
+// Adam: "if i fly into a wall on this my hood just, [-----] to [-]."
+//
+// Which is exactly the right shape for it, and the constraint makes itself: the
+// bonnet's NEAR edge is the seam — the one line where the 3D bonnet and the DOM
+// interior touch — so it must not move, ever, or the join opens. So the crumple pulls
+// the NOSE back toward the seam and leaves the bulkhead where it is. Which is also what
+// actually happens to a car: the front folds, the scuttle doesn't.
+//
+// Three things happen at once, and the second is the one that sells it:
+//   the nose comes BACK,
+//   the fold buckles UP into your eyeline, so you are looking at a bent bonnet,
+//   and the nose narrows as it's crushed in.
+// `bias` is where you hit it: -1 hard on the left, +1 hard on the right, and that side
+// folds further. A perfectly symmetrical crumple reads as a scale, not as an accident.
+// The nose's rest position — must match buildCockpit above.
+const FAR_Z0 = -2.70, FAR_W0 = 1.00, FAR_Y0 = -0.77;
+
+// These two are PROJECTED, not guessed. At the game's 58-degree FOV the clean nose
+// (-0.77m at 2.70m) sits about 16 degrees below the eye line, which on a phone is a few
+// pixels above the top of the dashboard — so the bonnet you can actually SEE is a thin
+// strip, and the first attempt at this crushed the nose 1.18m and made it disappear
+// behind the dash entirely. Which is the opposite of the point.
+//
+// So the fold matters far more than the shortening. Bringing the nose to -0.29m at 2.00m
+// puts it 8 degrees below the eye line — roughly fifty pixels of bent metal standing up
+// where there was a sliver — and it costs you road, which is exactly what wrecking the
+// front of your car should do.
+const CRUSH_Z = 0.70;     // metres of bonnet the nose loses: 1.55m long becomes 0.85m
+const BUCKLE_Y = 0.48;    // and it stands up into the windscreen
+
+export function crumple(hood, lip, amount, bias = 0) {
+  const a = Math.max(0, Math.min(1, amount));
+  const p = hood.geometry.attributes.position;
+
+  // Each front corner gets its own amount, so an off-centre hit folds one wing.
+  const side = s => Math.max(0, Math.min(1, a * (1 + 0.55 * s * bias)));
+
+  for (const [idx, s] of [[2, -1], [3, 1]]) {
+    const k = side(s);
+    const z = FAR_Z0 + CRUSH_Z * k;
+    // Not squared. Squaring meant a half-crumpled car looked untouched, and half is
+    // what a 45-degree clip at ninety actually costs you.
+    const y = FAR_Y0 + BUCKLE_Y * k * (0.45 + 0.55 * k);
+    const x = (FAR_W0 - 0.22 * k) * s;
+    p.setXYZ(idx, x, y, z);
+  }
+  p.needsUpdate = true;
+  hood.geometry.computeVertexNormals();
+  hood.geometry.computeBoundingSphere();
+
+  // The lip rides the middle of the new front edge.
+  const kl = side(-1), kr = side(1);
+  const k = (kl + kr) * 0.5;
+  lip.position.set(0, FAR_Y0 + BUCKLE_Y * k * (0.45 + 0.55 * k) - 0.04, FAR_Z0 + CRUSH_Z * k);
+  lip.rotation.z = (kl - kr) * 0.5;          // and tips with the fold
+  lip.scale.x = 1 - 0.22 * k;
+}
+
+// Put it back. A new run is a new car.
+export function uncrumple(hood, lip) { crumple(hood, lip, 0, 0); }
