@@ -13,6 +13,8 @@ export const CAR = {
   drag: 0.0042,
   rollResist: 0.42,
   maxReverse: 7.0,      // m/s the car can roll backwards down something it can't climb
+  reverseEngage: 4.0,   // ...and the speed below which you're allowed to SELECT reverse
+  reversePower: 0.45,   // reverse is a crawl, not a second forward gear
 
   maxSteer: 0.62,       // radians of front wheel angle at full lock, ~35 degrees
   wheelbase: 2.55,      // metres. With maxSteer this sets the geometric turning circle.
@@ -118,6 +120,7 @@ export class Car {
     this._dsCool = 0;
     this.rolled = false;
     this.settled = false;    // finished tumbling and come to rest
+    this.reverse = false;    // double tap the right thumb
     this.landedUpright = false;
     this.recovered = false;
     this._dig = 0;
@@ -144,6 +147,18 @@ export class Car {
   get bodyRoll() { return this.roll * 0.75; }
   // Consume the one-shot impact magnitude.
   takeImpact() { const i = this.impact; this.impact = 0; return i; }
+
+  // Double tap the right thumb. There's no gearbox to model and no gear number anywhere
+  // in this game — this is one bit: is the engine pushing you forwards or backwards.
+  //
+  // It only engages at a crawl, the way a real box does, which also means it can never
+  // be used as a brake: double-tapping at ninety does nothing at all.
+  toggleReverse() {
+    if (this.reverse) { this.reverse = false; return true; }
+    if (this.rolled || this.speed > CAR.reverseEngage) return false;
+    this.reverse = true;
+    return true;
+  }
 
   // ---- hitting something solid ---------------------------------------------
   // (nx, nz) is the world-space normal pointing OUT of whatever you hit. Only the
@@ -479,8 +494,13 @@ export class Car {
     if (!this.airborne) {
       const surf = ground.onRoad ? 1 : CAR.offroadGrip;
 
-      const push = CAR.power * Math.exp(-CAR.powerFalloff * Math.max(0, this.vf)) * surf;
-      if (!this.rolled) this.vf += push * (1 - handbrake) * dt;
+      // The auto-throttle, pointed whichever way the box is in. `reversePower` keeps it
+      // a crawl: reverse exists to get you off a wall and pointed back down the road,
+      // not to be a second way of driving the stage.
+      const dir = this.reverse ? -1 : 1;
+      const push = CAR.power * Math.exp(-CAR.powerFalloff * Math.abs(this.vf)) * surf
+                 * (this.reverse ? CAR.reversePower : 1);
+      if (!this.rolled) this.vf += dir * push * (1 - handbrake) * dt;
       this.vf -= CAR.brakeDrag * this.vf * handbrake * dt;
 
       this.vf -= CAR.drag * this.vf * Math.abs(this.vf) * dt;

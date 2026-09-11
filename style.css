@@ -275,10 +275,13 @@ html, body {
 .shifter { top: 158vh; left: 56%; width: 9vh; height: 13vh; }
 .shifter i {
   position: absolute; inset: 0;
+  /* Reverse moves the lever, and that is the only thing anywhere that tells you. */
+  transition: transform .16s cubic-bezier(.2,.9,.3,1.2);
   background: linear-gradient(180deg, #16181c 0%, #22252a 46%, #2b2f35 100%);
   border-radius: 50% 50% 22% 22% / 34% 34% 12% 12%;
   box-shadow: inset 0 2px 0 rgba(255,255,255,.08);
 }
+.shifter.rev i { transform: translate(-34%, -26%) rotate(-11deg); }
 .handbrake {
   top: 164vh; left: 40%; width: 16%; height: 3vh;
   background: linear-gradient(90deg, #1b1e22, #2a2e34);

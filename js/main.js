@@ -232,7 +232,20 @@ const controls = new Controls($('app'), wheel, () => {
   // doesn't quietly cancel it.
   dsFlare = Math.max(dsFlare, rpmDrop(car.speedFactor) - rpmFor(car.speedFactor));
   sound.downshift(car.speedFactor);
+}, () => {
+  // Double tap the right thumb. It refuses above a crawl, so this can come back false.
+  if (!car.toggleReverse()) return;
+  sound.thud(0.18);                       // the box going in, not a crash
+  showReverse();
 });
+
+// Reverse has no HUD and isn't getting one. It shows on the SHIFTER, which is already
+// down in the console — so checking whether you're actually in reverse means tilting the
+// phone down to look at the lever, which is what you'd do in a car.
+const shifterEl = document.querySelector('.shifter');
+function showReverse() {
+  if (shifterEl) shifterEl.classList.toggle('rev', car.reverse);
+}
 
 // TEST HOOK. ?auto drives the stage on its own so the game can be screenshotted
 // headlessly — I can't hold the phone, so this is how I check it renders at all.
@@ -285,6 +298,7 @@ function resetRun() {
   car.impact = 0; car.landingHit = 0;
   // A new run is a new car.
   car.damage = 0; car.damageBias = 0;
+  car.reverse = false; showReverse();
   shownDamage = 0; uncrumple(hood, lip);
   wheel.pos = 0; wheel.target = 0; wheel.release();
   glass.clear();
@@ -437,7 +451,6 @@ function step(dt) {
   // Buildings and rock, as boxes, against the car as a circle. Resolved AFTER the step
   // so it tests where the car actually ended up rather than where it was.
   if (!car.rolled) stage.collide(car, CAR.carRadius);
-  }
 
   if (car.justLanded && car.lastAirTime > 0.22) {
     sound.thud(car.landingHit);
