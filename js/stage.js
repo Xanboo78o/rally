@@ -29,6 +29,7 @@ const STEP = 2.0;           // centreline sample spacing, metres
 const VERGE = 13;           // how far the shaped ground extends past the road edge
 const SKIRT = 200;          // how far out the hillside can run before the valley floor
 const MIN_SPAN = 5;         // ...and how little it may run to, inside a hairpin
+const SOLID_CELL = 20;      // metres per bucket in the collision grid
 const FLOOR_BELOW = 6;      // how far the valley floor sits under the lowest road
 
 const EDGE_DROP = 2.6;      // how far the ground has fallen by the time the verge levels
@@ -85,7 +86,8 @@ export function camberAt(y, lateral, w, camT) {
   return y - Math.sign(lateral) * Math.min(Math.abs(lateral), w) * camT;
 }
 const RISE_END = VERGE;     // metres out at which a cut has reached its full height
-const RIDGE_MULT = 2.6;     // ...and how much taller again it is by the end of the skirt
+const RIDGE_MULT = 2.6;     // ...and how much taller again it is at the crest
+const RIDGE_AT = 0.30;      // where that crest sits along the skirt — on a mesh vertex
 
 // THE GROUND, in one function, used by both the physics in sample() and the mesh built
 // below. It has to be one function: they were two, and they disagreed — the mesh drew a
@@ -94,8 +96,27 @@ const RIDGE_MULT = 2.6;     // ...and how much taller again it is by the end of 
 //
 // `lift` is this side's bank in metres: negative falls to the valley floor, positive
 // climbs and never comes back down.
-export function groundProfile(y, off, floorY, span = SKIRT, lift = -EDGE_DROP) {
+// Rolling variation in the hillsides. Three sines rather than a noise import, because
+// this is called from the physics on every tick and from the mesh for every vertex, and
+// it has to give the same answer to both forever. `phase` is distance along the stage,
+// so it varies along the road as well as across it.
+//
+// It ramps in from ZERO at the road edge: the racing surface stays exactly as authored
+// and only the ground beyond it gets its lumps, so this adds height variation without
+// putting a single bump where it could be blamed for a lost time.
+const VARY_FULL = 26;       // metres off the road at which it reaches full amplitude
+function heightVariation(phase, off) {
+  const k = Math.min(1, off / VARY_FULL);
+  if (k <= 0) return 0;
+  return k * k * (
+    Math.sin(phase * 0.0071 + off * 0.019) * 3.4 +
+    Math.sin(phase * 0.037 - off * 0.051) * 1.7 +
+    Math.sin(phase * 0.11 + off * 0.07) * 0.8);
+}
+
+export function groundProfile(y, off, floorY, span = SKIRT, lift = -EDGE_DROP, phase = 0) {
   if (off <= 0) return y;                                  // on the road
+  const vary = heightVariation(phase, off);
 
   if (lift > 0) {
     // A cut into the hillside. Steep at the road and easing as it goes, which is what
@@ -104,21 +125,37 @@ export function groundProfile(y, off, floorY, span = SKIRT, lift = -EDGE_DROP) {
       const t = off / RISE_END;
       return y + lift * t * (2 - t);                       // ease-out to full height
     }
+    // Then up to a RIDGE, and then back down to the valley floor — which is the bit
+    // that was missing. A rising side used to climb and simply stop at the outer edge
+    // of the mesh, leaving a wall of ground hanging over a flat plain: "i can see where
+    // the baseplate starts and ends going into the pines". Now the far edge meets the
+    // floor exactly where the plane is, so there is no seam to see, and the ridge sits
+    // between you and the join.
     const t = Math.min(1, (off - RISE_END) / Math.max(1, span));
-    return y + lift * (1 + (RIDGE_MULT - 1) * t * t * (3 - 2 * t));
+    const ridge = y + lift * RIDGE_MULT;
+    // The crest lands ON a mesh vertex (the cross-section samples 0.30, 0.65 and 1.0 of
+    // the span), so the ridge is a ridge rather than something the triangles cut off.
+    if (t <= RIDGE_AT) {
+      const u = t / RIDGE_AT;
+      return y + (ridge - y) * (u * u * (3 - 2 * u)) + lift * (1 - u * u * (3 - 2 * u)) + vary;
+    }
+    const u = (t - RIDGE_AT) / (1 - RIDGE_AT);
+    // Fades out as it reaches the floor, or the mesh stops meeting the plane and the
+    // seam you could see comes straight back.
+    return ridge + (floorY - ridge) * (u * u * (3 - 2 * u)) + vary * (1 - u);
   }
 
   const drop = -lift;
   const dropEnd = drop / EDGE_SLOPE;
-  if (off <= dropEnd) return y - off * EDGE_SLOPE;          // the verge falling away
+  if (off <= dropEnd) return y - off * EDGE_SLOPE + vary;   // the verge falling away
   const edge = y - drop;
-  if (off <= VERGE) return edge;                            // the level shelf
+  if (off <= VERGE) return edge + vary;                     // the level shelf
   const total = edge - floorY;
   if (total <= 0) return edge;
   const t = Math.min(1, (off - VERGE) / Math.max(1, span));
   for (let i = 1; i < SKIRT_KNOTS.length; i++) {
     const [t0, f0] = SKIRT_KNOTS[i - 1], [t1, f1] = SKIRT_KNOTS[i];
-    if (t <= t1) return edge - total * (f0 + (f1 - f0) * (t - t0) / (t1 - t0));
+    if (t <= t1) return edge - total * (f0 + (f1 - f0) * (t - t0) / (t1 - t0)) + vary * (1 - t);
   }
   return floorY;
 }
@@ -136,6 +173,7 @@ export class Stage {
     this.floorY = minY - FLOOR_BELOW;
     this._spans();
     this._hint = 0;
+    this._buildSolids();
   }
 
   _build() {
@@ -177,6 +215,108 @@ export class Stage {
                             camT: prevCam + (cam - prevCam) * ct });
       }
     });
+  }
+
+  // ---- things you can actually hit ------------------------------------------
+  // The slabs are the only blocky things in the world, and they have been scenery you
+  // could drive straight through. Adam: "some areas like the city need collisions on the
+  // buildings." They're built here rather than in the mesh builder for two reasons: the
+  // physics needs them whether or not anything is being drawn, and the mesh builder now
+  // needs a DOM canvas for its textures so it can't run in the harnesses at all.
+  //
+  // Bucketed into a coarse grid, because there are a few hundred of them over nine
+  // kilometres and the car only ever cares about the two or three it's next to.
+  _buildSolids() {
+    this.solids = [];
+    this._grid = new Map();
+    const FLOOR = this.floorY;
+    this.samples.forEach((s, i) => {
+      const P = PROPS[this.sectionAt(s.dist)] || PROPS.dawn;
+      const gy = (d, side = 1) => groundProfile(
+        camberAt(s.y, d * side, s.w, s.camT),
+        Math.abs(d) - s.w, FLOOR, s.span, side >= 0 ? s.bl : s.br, s.dist);
+      for (const b of slabsAt({ ...s, i }, P, gy)) {
+        b.hx = b.sx * 0.5; b.hz = b.sz * 0.5;
+        b.top = b.y + b.sy * 0.5;
+        b.c = Math.cos(b.head); b.s = Math.sin(b.head);
+        const id = this.solids.push(b) - 1;
+        const reach = Math.hypot(b.hx, b.hz);
+        for (let gx = Math.floor((b.x - reach) / SOLID_CELL); gx <= Math.floor((b.x + reach) / SOLID_CELL); gx++)
+          for (let gz = Math.floor((b.z - reach) / SOLID_CELL); gz <= Math.floor((b.z + reach) / SOLID_CELL); gz++) {
+            const k = gx + ',' + gz;
+            let cell = this._grid.get(k);
+            if (!cell) this._grid.set(k, cell = []);
+            cell.push(id);
+          }
+      }
+    });
+  }
+
+  // Everything solid that could possibly be touching a circle of radius r at (x, z).
+  solidsNear(x, z, r = 1.2) {
+    const out = [];
+    const seen = new Set();
+    for (let gx = Math.floor((x - r) / SOLID_CELL); gx <= Math.floor((x + r) / SOLID_CELL); gx++)
+      for (let gz = Math.floor((z - r) / SOLID_CELL); gz <= Math.floor((z + r) / SOLID_CELL); gz++) {
+        const cell = this._grid.get(gx + ',' + gz);
+        if (!cell) continue;
+        for (const id of cell) if (!seen.has(id)) { seen.add(id); out.push(this.solids[id]); }
+      }
+    return out;
+  }
+
+  // Resolve a body against everything solid near it. Lives here, next to the boxes,
+  // so the game and the harness collide exactly the same way — the alternative is two
+  // copies of this that quietly drift apart, which is how the road came to hang 2.6m in
+  // the air. `body` needs x, y, z and a shunt(nx, nz, depth).
+  collide(body, R = 1.05) {
+    // ONLY the deepest overlap gets resolved, and only one per tick. Resolving every
+    // box in the list pushed the car out of one house straight into the next and back
+    // again: it wedged in the village at 3526m, 7.4m off the road, and the run stopped
+    // there. One push per tick converges instead of fighting itself.
+    let worst = null, wx = 0, wz = 0, wd = 0;
+    for (const b of this.solidsNear(body.x, body.z, R)) {
+      if (body.y > b.top - 0.25) continue;              // cleared it, or standing on it
+      const dx = body.x - b.x, dz = body.z - b.z;
+      // Into the box's own frame: its local X is the road's lateral (cos h, -sin h),
+      // its local Z the road's forward (sin h, cos h).
+      const lx = dx * b.c - dz * b.s;
+      const lz = dx * b.s + dz * b.c;
+      const px = b.hx + R - Math.abs(lx);
+      const pz = b.hz + R - Math.abs(lz);
+      if (px <= 0 || pz <= 0) continue;
+      const depth = Math.min(px, pz);
+      if (depth <= wd) continue;
+      // Out through whichever face is closest — the shallower penetration is the one
+      // you came through, so that's the way back out.
+      if (px < pz) { const g = Math.sign(lx) || 1; wx = g * b.c; wz = -g * b.s; }
+      else         { const g = Math.sign(lz) || 1; wx = g * b.s; wz = g * b.c; }
+      wd = depth; worst = b;
+    }
+    // Capped, so a deeply-buried frame can't teleport a fast car across the street —
+    // but a car that has already stopped has to be allowed out properly, or it sits
+    // inside a house with the engine running, which is how the village stalled one run
+    // in five at 3777m.
+    if (!worst) { body._stuck = 0; return; }
+
+    // PINCHED. Resolving the deepest box alone is fine against one face and useless
+    // between two — a car wedged in the gorge gets pushed off the left wall into the
+    // right one and back, forever, which stalled seeds 2 and 4 at 4320m. So if it has
+    // been in contact and going nowhere for half a second, stop arguing with the boxes
+    // and push it back toward the CENTRELINE, which is the one line in the world that is
+    // guaranteed to have nothing solid on it. Physically that's just reversing out.
+    body._stuck = (body.speed || 0) < 2.5 ? (body._stuck || 0) + 1 : 0;
+    if (body._stuck > 30) {
+      const g = this.sample(body.x, body.z);
+      if (g.off > 0) {
+        const rx = Math.cos(g.head), rz = -Math.sin(g.head);
+        const toward = -Math.sign(g.lateral) || 1;
+        body.x += rx * toward * 0.25;
+        body.z += rz * toward * 0.25;
+        return;
+      }
+    }
+    body.shunt(wx, wz, Math.min(wd, (body.speed || 0) > 6 ? 0.35 : 1.1));
   }
 
   // Runs of segments that share a section, as { key, start, end } in metres. This is
@@ -297,7 +437,7 @@ export class Stage {
 
     // The same curve the mesh is built from, so what you can see is what you land on —
     // including off the side of the mountain, where the ground now keeps going down.
-    const height = groundProfile(camberAt(baseY, lateral, w, camT), off, this.floorY, span, lift);
+    const height = groundProfile(camberAt(baseY, lateral, w, camT), off, this.floorY, span, lift, s.dist);
     return {
       height,
       slope,
@@ -348,8 +488,14 @@ const PROPS = {
   pines:   { tree: { every: 1, near: 2.2, far: 34, h: 30.0, r: 3.4 }, tuft: 3, stone: 2 },
   ruins:   { tree: { every: 12, near: 22, far: 60, h: 9.0, r: 3.0 },
              mono: { every: 11, h: 26, out: 26, w: 5.0 }, tuft: 2, stone: 2 },
-  village: { wall: { every: 3, h: 5.5, gap: 1.4, w: 3.2 }, tuft: 1, stone: 2 },
-  gorge:   { wall: { every: 2, h: 17, gap: 0.7, w: 5.0 }, tuft: 1, stone: 3 },
+  // gap 2.6, not 1.4. Once the buildings became solid, 1.4m left about a foot of air
+  // either side of the car at the road edge, which is not a street, it's a vice.
+  village: { wall: { every: 3, h: 5.5, gap: 2.6, w: 3.2 }, tuft: 1, stone: 2 },
+  // The gorge is meant to have no run-off, but once the rock became solid, 1.9m of gap
+  // either side of a 6.8m road made it a vice: stop touching a wall in there and the
+  // car cannot get itself out. 3.2 keeps it the tightest place on the stage and leaves
+  // enough room to be recovered from.
+  gorge:   { wall: { every: 2, h: 17, gap: 3.2, w: 5.0 }, tuft: 1, stone: 3 },
   climb:   { tree: { every: 9, near: 9, far: 26, h: 7.0, r: 1.8 },
              mono: { every: 17, h: 14, out: 19, w: 3.4 }, tuft: 3, stone: 3 },
   plateau: { tuft: 4, stone: 3 },
@@ -473,6 +619,43 @@ const LANDMARK = {
     g.cone(lat, 0, g.ground(lat) - 0.35, m.r || 2.4, m.h || 16, g.p.tree);
   },
 };
+
+// Where the slabs stand at one sample. ONE function, because the renderer draws these
+// and the car now hits them, and the last time two bits of code computed the same
+// surface separately the road hung 2.6m in the air for a whole stage.
+//
+// `gy(d, side)` is the ground at that distance out — the caller supplies it because the
+// mesh builder and the Stage reach it slightly differently.
+export function slabsAt(s, P, gy) {
+  const out = [];
+  const rx = Math.cos(s.head), rz = -Math.sin(s.head);
+
+  // Walls: slabs hard against the verge. In the village they're houses, in the gorge
+  // they're the rock — same primitive, different height and colour.
+  if (P.wall && s.i % P.wall.every === 0) {
+    for (const side of [-1, 1]) {
+      const j = (s.i * 43 + (side > 0 ? 19 : 3)) % 13;
+      const h = P.wall.h * (0.70 + (j % 6) * 0.10);
+      const d = s.w + P.wall.gap + P.wall.w * 0.5;
+      out.push({ kind: 'wall', j,
+                 x: s.x + rx * d * side, y: gy(d, side) - 0.40 + h * 0.5, z: s.z + rz * d * side,
+                 head: s.head, sx: P.wall.w, sy: h, sz: 2.0 + (j % 4) * 1.4 });
+    }
+  }
+
+  // Monoliths: whatever this place used to be, still standing, a long way back.
+  if (P.mono && s.i % P.mono.every === 0) {
+    const side = ((s.i / P.mono.every) | 0) % 2 ? 1 : -1;
+    const j = (s.i * 29) % 19;
+    const h = P.mono.h * (0.55 + (j % 7) * 0.12);
+    const d = s.w + P.mono.out + (j % 5) * 4.5;
+    out.push({ kind: 'mono', j,
+               x: s.x + rx * d * side, y: gy(d, side) - 0.60 + h * 0.5, z: s.z + rz * d * side,
+               head: s.head + (j % 5) * 0.19, sx: P.mono.w, sy: h,
+               sz: P.mono.w * (0.6 + (j % 3) * 0.3) });
+  }
+  return out;
+}
 
 export function buildStageMesh(THREE, stage, opts = {}) {
   const group = new THREE.Group();
@@ -601,7 +784,7 @@ export function buildStageMesh(THREE, stage, opts = {}) {
       ];
       for (const [lat, rgb] of cross) {
         const y = groundProfile(camberAt(s.y, lat, w, s.camT), Math.abs(lat) - w,
-                                FLOOR, K, lat >= 0 ? s.bl : s.br);
+                                FLOOR, K, lat >= 0 ? s.bl : s.br, s.dist);
         push(land, s.x + rx * lat, y, s.z + rz * lat, rgb);
       }
 
@@ -683,7 +866,7 @@ export function buildStageMesh(THREE, stage, opts = {}) {
       // monoliths a clear 1.1m — while the near pines were buried to the branches.
       // `d` is distance from the centreline; side decides which bank it stands on.
       const gy = (d, side = 1) => groundProfile(camberAt(s.y, d * side, s.w, s.camT),
-                                                Math.abs(d) - s.w, FLOOR, s.span, side >= 0 ? s.bl : s.br);
+                                                Math.abs(d) - s.w, FLOOR, s.span, side >= 0 ? s.bl : s.br, s.dist);
 
       // edge posts, so you can read where the road goes in first person
       if (i % 4 === 0) {
@@ -725,32 +908,12 @@ export function buildStageMesh(THREE, stage, opts = {}) {
         }
       }
 
-      // Walls: slabs hard against the verge. In the village they're houses, in the
-      // gorge they're the rock — same primitive, different height and colour.
-      if (P.wall && i % P.wall.every === 0) {
-        for (const side of [-1, 1]) {
-          const j = (i * 43 + (side > 0 ? 19 : 3)) % 13;
-          const h = P.wall.h * (0.70 + (j % 6) * 0.10);
-          const d = s.w + P.wall.gap + P.wall.w * 0.5;
-          // Each building gets its own shade of the same material. Two hex values would
-          // read as two kinds of house; a scale on one reads as weathering.
-          jobs.slab.push({ x: s.x + rx * d * side, y: gy(d, side) - 0.40 + h * 0.5,
-                           z: s.z + rz * d * side, head: s.head,
-                           sx: P.wall.w, sy: h, sz: 2.0 + (j % 4) * 1.4,
-                           c: p.wall, shade: 0.74 + (j % 6) * 0.09 });
-        }
-      }
-
-      // Monoliths: whatever this place used to be, still standing, a long way back.
-      if (P.mono && i % P.mono.every === 0) {
-        const side = ((i / P.mono.every) | 0) % 2 ? 1 : -1;
-        const j = (i * 29) % 19;
-        const h = P.mono.h * (0.55 + (j % 7) * 0.12);
-        const d = s.w + P.mono.out + (j % 5) * 4.5;
-        jobs.slab.push({ x: s.x + rx * d * side, y: gy(d, side) - 0.60 + h * 0.5,
-                         z: s.z + rz * d * side, head: s.head + (j % 5) * 0.19,
-                         sx: P.mono.w, sy: h, sz: P.mono.w * (0.6 + (j % 3) * 0.3),
-                         c: p.stone, shade: 0.68 + (j % 5) * 0.10 });
+      // Each building gets its own shade of the same material. Two hex values would
+      // read as two kinds of house; a scale on one reads as weathering.
+      for (const b of slabsAt({ ...s, i }, P, gy)) {
+        jobs.slab.push(b.kind === 'wall'
+          ? { ...b, c: p.wall, shade: 0.74 + (b.j % 6) * 0.09 }
+          : { ...b, c: p.stone, shade: 0.68 + (b.j % 5) * 0.10 });
       }
     }
 
@@ -781,7 +944,14 @@ export function buildStageMesh(THREE, stage, opts = {}) {
     inst(slabGeo, jobs.slab, o => {
       pos.set(o.x, o.y, o.z);
       scl.set(o.sx, o.sy, o.sz);
-      q.setFromAxisAngle(UP, -o.head);
+      // +head, not -head. A box rotated by -head is MIRRORED about the road direction,
+      // so it sits 2*head away from the orientation it was meant to have. Boxes are
+      // symmetric under 180 degrees, which masked it: the arch happened to sit at a
+      // heading of -90 and came out 1.4 degrees off, while every building in the village
+      // was up to ninety degrees wrong — which is why the place read as scattered blocks
+      // instead of a street. Ry(+head) takes local X to (cos head, -sin head), which is
+      // exactly the road's lateral, and local Z to the road's forward.
+      q.setFromAxisAngle(UP, o.head);
       m.compose(pos, q, scl);
     });
 
@@ -807,15 +977,20 @@ export function buildStageMesh(THREE, stage, opts = {}) {
       for (const side of [-1, 1]) {
         for (let k = 0; k < 2; k++) {
           const j = (i * 61 + k * 137 + (side > 0 ? 29 : 3)) % 97;
-          const d = 430 + (j % 11) * 46;                   // 430..890m out
+          const r = 150 + (j % 5) * 70;                    // 150..430m BASE radius
+          const d = r + 260 + (j % 11) * 46;               // so the near foot clears
           const x = s.x + rx * d * side, z = s.z + rz * d * side;
           // The road doubles back on itself up the climb, so a hill dropped blindly to
-          // one side can land on a piece of road you reach two minutes later.
+          // one side can land on a piece of road you reach two minutes later — which is
+          // exactly what happened: "the mountains interfere with the track sometimes".
+          // The clearance has to be the hill's OWN RADIUS plus a margin, not a constant.
+          // It was a flat 260m against hills up to 510m across, so the widest of them
+          // reached eighty metres past the centreline of a road they were meant to miss.
+          const keep = (r + 150) ** 2;
           let clear = true;
-          for (const c of coarse) if ((c.x - x) ** 2 + (c.z - z) ** 2 < 260 * 260) { clear = false; break; }
+          for (const c of coarse) if ((c.x - x) ** 2 + (c.z - z) ** 2 < keep) { clear = false; break; }
           if (!clear) continue;
-          hills.push({ x, z, h: 90 + (j % 7) * 32, r: 150 + (j % 5) * 90,
-                       c: pal[i].floor });
+          hills.push({ x, z, h: 110 + (j % 7) * 38, r, c: pal[i].floor });
         }
       }
     }
@@ -860,14 +1035,14 @@ export function buildStageMesh(THREE, stage, opts = {}) {
         y: s.y + base + size[1] * 0.5,
         z: s.z + rz * lat + fz * along,
         sx: size[0], sy: size[1], sz: size[2],
-        yaw: -s.head + (yaw || 0), roll: roll || 0, c, shade: shade || 1,
+        yaw: s.head + (yaw || 0), roll: roll || 0, c, shade: shade || 1,
       });
       const g = {
         w: s.w, p: pal[i],
         // How far the ground has fallen from road level this far out. Everything stands
         // on this, or it hovers over the verge the way every prop here used to.
         ground: lat => groundProfile(camberAt(s.y, lat, s.w, s.camT),
-                                     Math.abs(lat) - s.w, FLOOR, s.span, lat >= 0 ? s.bl : s.br) - s.y,
+                                     Math.abs(lat) - s.w, FLOOR, s.span, lat >= 0 ? s.bl : s.br, s.dist) - s.y,
         at(d) {
           let j = i, target = s.dist + d;
           while (j > 0 && S[j].dist > target) j--;
@@ -936,7 +1111,7 @@ export function buildStageMesh(THREE, stage, opts = {}) {
     const dark = new THREE.MeshLambertMaterial({ color: 0x2b2f36, map: prop });
     const at = (mesh, out, along, up) => {
       mesh.position.set(s0.x + rx * out + fx * along, s0.y + up, s0.z + rz * out + fz * along);
-      mesh.rotation.y = -s0.head;
+      mesh.rotation.y = s0.head;
       group.add(mesh);
     };
     const span = s0.w * 2.4;
@@ -960,7 +1135,7 @@ export function buildStageMesh(THREE, stage, opts = {}) {
     new THREE.MeshLambertMaterial({ color: 0xd8433a, map: prop })
   );
   gate.position.set(last.x, last.y + 3.2, last.z);
-  gate.rotation.y = -last.head;
+  gate.rotation.y = last.head;
   group.add(gate);
 
   return group;

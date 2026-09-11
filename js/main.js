@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { Stage, buildStageMesh } from './stage.js';
 import { TRACKS, DEFAULT_TRACK } from './tracks.js';
-import { Car } from './car.js';
+import { Car, CAR } from './car.js';
 import { Wheel, TUNE } from './wheel.js';
 import { Controls } from './controls.js';
 import { AirFx } from './air.js';
@@ -433,6 +433,11 @@ function step(dt) {
   wheel.update(dt, car.speedFactor);
   const wasAir = car.airborne;
   car.step(dt, wheel.pos, controls.handbrake, ground);
+
+  // Buildings and rock, as boxes, against the car as a circle. Resolved AFTER the step
+  // so it tests where the car actually ended up rather than where it was.
+  if (!car.rolled) stage.collide(car, CAR.carRadius);
+  }
 
   if (car.justLanded && car.lastAirTime > 0.22) {
     sound.thud(car.landingHit);

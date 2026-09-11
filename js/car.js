@@ -12,6 +12,7 @@ export const CAR = {
   topSpeed: 47,         // m/s, ~105 mph
   drag: 0.0042,
   rollResist: 0.42,
+  maxReverse: 7.0,      // m/s the car can roll backwards down something it can't climb
 
   maxSteer: 0.62,       // radians of front wheel angle at full lock, ~35 degrees
   wheelbase: 2.55,      // metres. With maxSteer this sets the geometric turning circle.
@@ -85,7 +86,21 @@ export const CAR = {
   wallDamage: 1.0,      // a square hit at ninety folds the bonnet in one go
   wallSpin: 2.2,        // and throws the car round
   wallCool: 0.40,       // seconds before you can be hit again — one bang, then scraping
+  wallBounce: 0.18,     // how much of the closing speed comes back at you off a solid face
+  carRadius: 1.05,      // the car, as a circle, for hitting things that are boxes
 };
+
+// The ONE piece of randomness in the physics: how much a bad landing kicks the tail.
+// It has to be seedable, because tools/simcheck.mjs drives the whole stage and a gate
+// that fails one run in five is worse than no gate at all — you learn to re-run it
+// instead of reading it. `carSeed()` makes a run reproducible; the game leaves it alone
+// and gets a different kick every time, which is the point in the game.
+let _rnd = Math.random;
+export function carSeed(n) {
+  if (n === undefined) { _rnd = Math.random; return; }
+  let s = (n | 0) || 1;
+  _rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+}
 
 export class Car {
   constructor() {
@@ -129,6 +144,40 @@ export class Car {
   get bodyRoll() { return this.roll * 0.75; }
   // Consume the one-shot impact magnitude.
   takeImpact() { const i = this.impact; this.impact = 0; return i; }
+
+  // ---- hitting something solid ---------------------------------------------
+  // (nx, nz) is the world-space normal pointing OUT of whatever you hit. Only the
+  // velocity along that normal is taken; everything across it survives, so clipping the
+  // corner of a house scrapes you down the wall and costs you a tenth, and driving
+  // square into one does not. That difference is the whole thing — a wall that always
+  // stops you dead is a wall nobody drives near, and this stage is made of them.
+  shunt(nx, nz, depth) {
+    // Push back out first, or the next tick finds you still inside it.
+    this.x += nx * depth;
+    this.z += nz * depth;
+
+    const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+    let vx = this.vf * sy + this.vr * cy;
+    let vz = this.vf * cy - this.vr * sy;
+    const closing = -(vx * nx + vz * nz);
+    if (closing <= 0.5) return;                       // sliding along it, or leaving
+
+    // Kill the component going into the wall, keep a little of it as a bounce.
+    const take = closing * (1 + CAR.wallBounce);
+    vx += nx * take;
+    vz += nz * take;
+    this.vf = vx * sy + vz * cy;
+    this.vr = vx * cy - vz * sy;
+
+    if (this._wallCool > 0) return;                   // one bang, then you're scraping
+    const hit = Math.min(1, closing / (CAR.topSpeed * 0.55));
+    this.impact = Math.max(this.impact, hit);
+    const bias = Math.sign((nx * cy - nz * sy) || 0.001);   // which side of the car it was
+    this.damageBias = this.damage > 0.02 ? this.damageBias * 0.7 + bias * 0.3 : bias;
+    this.damage = Math.min(1, this.damage + hit * CAR.wallDamage);
+    this.yawRate += bias * hit * CAR.wallSpin * 0.8;
+    this._wallCool = CAR.wallCool;
+  }
 
   downshift() {
     if (this._dsCool > 0 || this.airborne) return false;
@@ -379,7 +428,7 @@ export class Car {
       this.lastAirTime = this.airTime;
       // A bad landing scrubs speed and kicks the car loose.
       this.vf *= 1 - 0.45 * this.landingHit;
-      this.vr += (Math.random() - 0.5) * 6 * this.landingHit;
+      this.vr += (_rnd() - 0.5) * 6 * this.landingHit;
       this.vy = this.vf * (ground.slope || 0);
       this.airborne = false;
       this.airTime = 0;
@@ -447,7 +496,13 @@ export class Car {
     }
 
     if (this.vf > CAR.topSpeed) this.vf = CAR.topSpeed;
-    if (this.vf < 0) this.vf = 0;
+    // It is allowed to ROLL BACK. This used to clamp at zero, which was harmless while
+    // nothing could ever push the car backwards — and then gravity along a slope could.
+    // Nose-into a bank too steep to climb, the car sat at 0mph with the engine running,
+    // forever, and couldn't even steer out because yaw rate is proportional to speed.
+    // A real car slides back down, and once it's moving it can be turned. That one
+    // clamp was every stall the harness found in the village and the gorge.
+    if (this.vf < -CAR.maxReverse) this.vf = -CAR.maxReverse;
 
     // ---- integrate position --------------------------------------------------
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);

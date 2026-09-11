@@ -45,6 +45,11 @@ export const THE_DROP_ZONE = [
   { len: 120, turn:    0, rise:   0, w: 5.0, sec: 'dawn', note: 'STRAIGHT 120 INTO THE TREES' },
 ];
 
+// It is also banked HARDER than the automatic camber gives it — roughly double, up to
+// 13 degrees on the tight ones. Adam: "bank the pines turns more." The auto value is
+// tuned for open roads; a narrow forest road that's been cut and filled by hand leans
+// on you much more than that.
+//
 // THE PINES is WIDER than it was — every segment gained 1.5m of half-width. It was
 // 3.8-4.4, which with 30m trees two metres off the edge was a slot, not a road, and
 // there was nowhere to be wrong. Adam: "make the track wider in the pines."
@@ -53,35 +58,35 @@ export const THE_DROP_ZONE = [
 export const THE_PINES = [
   // The road halves in width and the trees come to the edge of it. First hairpin:
   // there is no radius here, so the handbrake is the only way round.
-  { len:  90, turn:  -44, rise:   3, w: 5.7, sec: 'pines', note: 'RIGHT 4 INTO TREES',
+  { len:  90, turn:  -44, rise:   3, w: 5.7, cam: -5.9, sec: 'pines', note: 'RIGHT 4 INTO TREES',
     bank: [9, 9] },
-  { len:  60, turn:   52, rise:   2, w: 5.5, sec: 'pines', note: 'LEFT 3 NARROW',
+  { len:  60, turn:   52, rise:   2, w: 5.5, cam: 10.4, sec: 'pines', note: 'LEFT 3 NARROW',
     bank: [11, 7] },
-  { len:  55, turn:  -58, rise:   0, w: 5.3, sec: 'pines', note: 'RIGHT 3 TIGHT',
+  { len:  55, turn:  -58, rise:   0, w: 5.3, cam: -12.7, sec: 'pines', note: 'RIGHT 3 TIGHT',
     bank: [8, 12] },
   { len:  70, turn:    0, rise:  -2, w: 5.5, sec: 'pines', note: 'SHORT 70',
     bank: [10, 10] },
-  { len:  58, turn: -140, rise:   0, w: 5.5, sec: 'pines', note: 'HAIRPIN RIGHT 1 — HOLD THE HANDBRAKE',
+  { len:  58, turn: -140, rise:   0, w: 5.5, cam: -13.0, sec: 'pines', note: 'HAIRPIN RIGHT 1 — HOLD THE HANDBRAKE',
     bank: [13, 8],
     mark: [{ k: 'chevron', t: 0.20, n: 2 }, { k: 'crowd', t: 0.5, n: 7 }] },
   { len:  80, turn:    0, rise:   4, w: 5.7, sec: 'pines', note: 'STRAIGHT, CLIMBING',
     bank: [9, 9] },
-  { len:  75, turn:   96, rise:   2, w: 5.5, sec: 'pines', note: 'LEFT 2 — HANDBRAKE AGAIN',
+  { len:  75, turn:   96, rise:   2, w: 5.5, cam: 13.0, sec: 'pines', note: 'LEFT 2 — HANDBRAKE AGAIN',
     bank: [7, 13] },
-  { len:  95, turn:  -36, rise:   0, w: 5.7, sec: 'pines', note: 'RIGHT 4',
+  { len:  95, turn:  -36, rise:   0, w: 5.7, cam: -4.5, sec: 'pines', note: 'RIGHT 4',
     bank: [12, 9] },
-  { len:  70, turn:   60, rise:  -2, w: 5.5, sec: 'pines', note: 'LEFT 3 OVER ROOTS',
+  { len:  70, turn:   60, rise:  -2, w: 5.5, cam: 10.3, sec: 'pines', note: 'LEFT 3 OVER ROOTS',
     bank: [9, 11] },
-  { len:  62, turn:  -72, rise:   0, w: 5.3, sec: 'pines', note: 'RIGHT 2 — TREE ON THE INSIDE',
+  { len:  62, turn:  -72, rise:   0, w: 5.3, cam: -13.0, sec: 'pines', note: 'RIGHT 2 — TREE ON THE INSIDE',
     bank: [10, 8],
     mark: [{ k: 'tree', t: 0.45, side: -1, out: 0.9, h: 19, r: 2.2 }] },
   { len:  58, turn:    0, rise:   3, w: 5.5, sec: 'pines', note: 'SHORT 58, CRESTING',
     bank: [8, 10] },
-  { len:  65, turn:   26, rise:  -4, w: 5.7, sec: 'pines', note: 'LEFT 4 DOWNHILL',
+  { len:  65, turn:   26, rise:  -4, w: 5.7, cam: 4.8, sec: 'pines', note: 'LEFT 4 DOWNHILL',
     bank: [11, 11] },
-  { len:  55, turn:  -34, rise:  -3, w: 5.3, sec: 'pines', note: 'RIGHT 3 — DONT DROP A WHEEL',
+  { len:  55, turn:  -34, rise:  -3, w: 5.3, cam: -7.4, sec: 'pines', note: 'RIGHT 3 — DONT DROP A WHEEL',
     bank: [9, 12] },
-  { len: 110, turn:   40, rise:  -2, w: 5.9, sec: 'pines', note: 'LEFT 4 LONG, OUT OF THE TREES',
+  { len: 110, turn:   40, rise:  -2, w: 5.9, cam: 4.4, sec: 'pines', note: 'LEFT 4 LONG, OUT OF THE TREES',
     bank: [10, 9] },
 ];
 

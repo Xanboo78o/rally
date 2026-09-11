@@ -5,6 +5,7 @@
 //   node tools/simcheck.mjs [--v]
 
 import { Stage } from '../js/stage.js';
+import { CAR, carSeed } from '../js/car.js';
 
 // SIM_TRACK picks the road to measure. The sections live in js/tracks.js now, so a
 // "is this drivable" run can be pointed at any of them.
@@ -13,6 +14,8 @@ const { trackSegments, TRACKS } = await import('../js/tracks.js');
 // What THIS track is for. See the `wants` note in js/tracks.js.
 const WANTS = (TRACKS[TRACK] && TRACKS[TRACK].wants) || { time: [240, 400], jump: true, spread: 25 };
 const SEGMENTS = trackSegments(TRACK);
+let worstDamage = 0;
+carSeed(Number(process.env.SIM_SEED || 20260910));   // reproducible runs
 import { Car } from '../js/car.js';
 import { Wheel } from '../js/wheel.js';
 
@@ -35,7 +38,7 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42, from = 0, to = null) {
   stage._hint = i0;
   car.x = s0.x; car.z = s0.z; car.y = s0.y; car.yaw = s0.head;
 
-  let t = 0, hb = 0;
+  let t = 0, hb = 0, stopped = 0;
   const flights = [];
   let air = null;
   let maxOff = 0, offTime = 0;
@@ -65,7 +68,18 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42, from = 0, to = null) {
     hb = (needLat > 9.0 || Math.abs(err) > hbThresh) && car.speed > 14 ? 1 : 0;
 
     wheel.update(FIXED, car.speedFactor);
+    // The real surface under the car, the way main.js probes it — otherwise the harness
+    // drives a different physics from the game and its verdicts mean nothing.
+    {
+      const L = 3.4, fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
+      const rx = -Math.cos(car.yaw), rz = Math.sin(car.yaw);
+      g.gradAlong = (stage.sample(car.x + fx * L, car.z + fz * L).height - g.height) / L;
+      g.gradAcross = (stage.sample(car.x + rx * L, car.z + rz * L).height - g.height) / L;
+      g.wall = g.gradAlong;
+    }
     car.step(FIXED, wheel.pos, hb, g);
+    if (!car.rolled) stage.collide(car, CAR.carRadius);
+    if (car.damage > worstDamage) worstDamage = car.damage;
     t += FIXED;
 
     if (car.airborne) {
@@ -89,8 +103,21 @@ function run(lookahead = 26, gain = 2.1, hbThresh = 0.42, from = 0, to = null) {
     if (g.progress >= finishAt) {
       return { ok: true, t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
     }
-    if (car.speed < 0.4 && t > 6) {
-      return { ok: false, why: 'stalled at ' + Math.round(g.progress) + 'm', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
+    // SUSTAINED slowness, not one tick of it. This fired the instant the car dipped
+    // below 0.9mph, so a car that bumped a building, stopped for a fifth of a second and
+    // drove on was reported as "stalled" for the rest of time — which is most of what
+    // the village and gorge failures turned out to be.
+    stopped = car.speed < 0.6 ? stopped + FIXED : 0;
+    if (stopped > 2.0 && t > 6) {
+      // Say WHY, not just where. "Stalled at 4320m" sent me hunting a wedge in the
+      // gorge walls three times before the answer turned out to be somewhere else.
+      const why = 'stalled at ' + Math.round(g.progress) + 'm'
+        + ' [' + (car.rolled ? 'ON ITS ROOF' : 'upright')
+        + ', ' + (car.speed * 2.237).toFixed(1) + 'mph'
+        + ', ' + (g.off > 0 ? g.off.toFixed(1) + 'm off road' : 'on road')
+        + ', damage ' + car.damage.toFixed(2)
+        + ', ' + stage.solidsNear(car.x, car.z, 3).length + ' solids within 3m]';
+      return { ok: false, why, t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
     }
   }
   return { ok: false, why: 'never finished', t, flights, offTime, maxOff, segSpeed, stage, len: stage.length, offSeg };
